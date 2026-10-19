@@ -1,0 +1,157 @@
+namespace AdventurerCity.Simulation.Combat
+{
+    public enum HeroClass
+    {
+        Guard,
+        Priest,
+        Warrior
+    }
+
+    public enum CombatRole
+    {
+        Tank,
+        Healer,
+        Damage
+    }
+
+    public enum EnemyKind
+    {
+        Ratman,
+        Digger,
+        Shaman,
+        Grok
+    }
+
+    public readonly struct Stats
+    {
+        public readonly int Str;
+        public readonly int Agi;
+        public readonly int Int;
+        public readonly int Spi;
+        public readonly int Sta;
+
+        public Stats(int str, int agi, int intellect, int spi, int sta)
+        {
+            Str = str;
+            Agi = agi;
+            Int = intellect;
+            Spi = spi;
+            Sta = sta;
+        }
+
+        public Stats Grow(in Stats growth, int levels) => new Stats(
+            Str + growth.Str * levels,
+            Agi + growth.Agi * levels,
+            Int + growth.Int * levels,
+            Spi + growth.Spi * levels,
+            Sta + growth.Sta * levels);
+    }
+
+    public sealed class HeroClassDef
+    {
+        public HeroClass Class;
+        public string Name;
+        public CombatRole Role;
+        public Stats Base;
+        public Stats Growth;
+        public int Armor;
+        public int Weapon;
+        public float AttackInterval;
+        public bool MagicAttack;
+    }
+
+    public sealed class EnemyDef
+    {
+        public EnemyKind Kind;
+        public string Name;
+        public int Level;
+        public int Hp;
+        public int Armor;
+        public int Damage;
+        public float AttackInterval;
+        public bool MagicAttack;
+    }
+
+    public static class CombatData
+    {
+        public const float Tick = 0.1f;
+        public const float GlobalCooldown = 1f;
+        public const float DownedSeconds = 15f;
+        public const float MaxBattleSeconds = 300f;
+        public const float EnemyCritChance = 0.05f;
+        public const float CritMultiplier = 1.5f;
+        public const float DamageSpread = 0.1f;
+        public const float GuardThreatMultiplier = 3f;
+        public const float ShieldBashThreatMultiplier = 5f;
+        public const float GuardOpeningThreat = 25f;
+        public const float DamageDealerDelay = 1f;
+        public const float HealThreatPerPoint = 0.5f;
+        public const float InjuryHpPenalty = 0.1f;
+        public const int XpPerEnemyLevel = 20;
+        public const int XpPerLevel = 250;
+        public const int MaxLevel = 5;
+        public const float CollapseDamage = 40f;
+        public const float ShamanHeal = 35f;
+
+        static readonly HeroClassDef[] classes =
+        {
+            new HeroClassDef
+            {
+                Class = HeroClass.Guard, Name = "Страж", Role = CombatRole.Tank,
+                Base = new Stats(8, 4, 2, 4, 10), Growth = new Stats(1, 1, 0, 1, 2),
+                Armor = 30, Weapon = 6, AttackInterval = 2.0f
+            },
+            new HeroClassDef
+            {
+                Class = HeroClass.Priest, Name = "Жрец", Role = CombatRole.Healer,
+                Base = new Stats(2, 3, 7, 10, 6), Growth = new Stats(0, 1, 1, 2, 1),
+                Armor = 5, Weapon = 4, AttackInterval = 2.0f, MagicAttack = true
+            },
+            new HeroClassDef
+            {
+                Class = HeroClass.Warrior, Name = "Воин", Role = CombatRole.Damage,
+                Base = new Stats(10, 7, 2, 2, 7), Growth = new Stats(2, 1, 0, 0, 1),
+                Armor = 15, Weapon = 12, AttackInterval = 2.4f
+            }
+        };
+
+        static readonly EnemyDef[] enemies =
+        {
+            new EnemyDef { Kind = EnemyKind.Ratman, Name = "Крысолюд", Level = 1, Hp = 90, Armor = 5, Damage = 9, AttackInterval = 1.6f },
+            new EnemyDef { Kind = EnemyKind.Digger, Name = "Гоблин-копатель", Level = 2, Hp = 160, Armor = 10, Damage = 15, AttackInterval = 2.0f },
+            new EnemyDef { Kind = EnemyKind.Shaman, Name = "Гоблин-шаман", Level = 2, Hp = 110, Armor = 0, Damage = 9, AttackInterval = 2.0f, MagicAttack = true },
+            new EnemyDef { Kind = EnemyKind.Grok, Name = "Бригадир Грок", Level = 3, Hp = 1450, Armor = 20, Damage = 35, AttackInterval = 2.5f }
+        };
+
+        public static HeroClassDef Get(HeroClass heroClass) => classes[(int)heroClass];
+
+        public static EnemyDef Get(EnemyKind kind) => enemies[(int)kind];
+    }
+
+    public sealed class Rng
+    {
+        uint state;
+
+        public Rng(int seed)
+        {
+            state = (uint)seed * 2654435761u ^ 0x9E3779B9u;
+            if (state == 0) state = 1;
+        }
+
+        uint Next()
+        {
+            state ^= state << 13;
+            state ^= state >> 17;
+            state ^= state << 5;
+            return state;
+        }
+
+        public float Value => (Next() & 0xFFFFFF) / 16777216f;
+
+        public int Range(int min, int maxInclusive) => min + (int)(Next() % (uint)(maxInclusive - min + 1));
+
+        public bool Chance(float probability) => Value < probability;
+
+        public float Spread(float value, float spread) => value * (1f - spread + 2f * spread * Value);
+    }
+}

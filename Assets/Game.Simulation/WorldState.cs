@@ -1,0 +1,78 @@
+using System;
+using System.Collections.Generic;
+
+namespace AdventurerCity.Simulation
+{
+    [Serializable]
+    public sealed class Building
+    {
+        public int Id;
+        public BuildingKind Kind;
+        public int X;
+        public int Y;
+        public bool Rotated;
+        public int ConstructionLeft;
+        public float Progress;
+        public int Level = 1;
+        public int SatisfiedDays;
+        public int UnhappyDays;
+        public bool FoodMet = true;
+        public bool FirewoodMet = true;
+        public bool Paused;
+
+        [NonSerialized] public int Residents;
+        [NonSerialized] public bool LimitReached;
+        [NonSerialized] public int Workers;
+        [NonSerialized] public int RoadDistance = -1;
+        [NonSerialized] public float Efficiency;
+        [NonSerialized] public bool Stalled;
+
+        public bool IsComplete => ConstructionLeft <= 0;
+        public bool IsConnected => RoadDistance >= 0;
+        public bool IsProducing => Workers > 0 && !Paused && !LimitReached;
+    }
+
+    [Serializable]
+    public sealed class WorldState
+    {
+        public const int CurrentFormat = 2;
+
+        public int Format = CurrentFormat;
+        public int Width;
+        public int Height;
+        public long Tick;
+        public int NextId = 1;
+        public int NextCitizenId = 1;
+        public int RngState = 123456789;
+        public int[] Stock;
+        public int[] StockLimits;
+        public List<Building> Buildings = new List<Building>();
+        public List<int> Roads = new List<int>();
+        public List<Citizen> Citizens = new List<Citizen>();
+        public List<ExpeditionRecord> Expeditions = new List<ExpeditionRecord>();
+        public int NextExpeditionId = 1;
+    }
+
+    [Serializable]
+    public sealed class ExpeditionRecord
+    {
+        public int Id;
+        public int Seed;
+        public List<int> HeroIds = new List<int>();
+        public float Elapsed;
+    }
+
+    public readonly struct SimEvent
+    {
+        public readonly long Tick;
+        public readonly string Text;
+
+        public SimEvent(long tick, string text)
+        {
+            Tick = tick;
+            Text = text;
+        }
+
+        public int Day => (int)(Tick / SimConstants.TicksPerDay) + 1;
+    }
+}
