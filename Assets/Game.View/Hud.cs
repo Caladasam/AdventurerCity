@@ -166,7 +166,7 @@ namespace AdventurerCity.View
             GUILayout.EndHorizontal();
             GUILayout.EndArea();
 
-            var help = "ЛКМ — строить/выбрать · ПКМ/Esc — отмена · R — поворот · WASD, Q/E, колесо, СКМ — камера · Tab — экономика";
+            var help = "ЛКМ — строить/выбрать · ПКМ/Esc — отмена · R — поворот · WASD, колесо, СКМ — камера · Tab — экономика · M — карта";
             GUI.Label(new Rect(8f, Screen.height - ToolbarHeight - 22f, Screen.width, 20f), help);
         }
 

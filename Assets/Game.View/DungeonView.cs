@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using AdventurerCity.Simulation;
 using AdventurerCity.Simulation.Combat;
 using UnityEngine;
+using UnityEngine.Rendering.Universal;
 
 namespace AdventurerCity.View
 {
@@ -10,18 +11,18 @@ namespace AdventurerCity.View
         const float LungeSeconds = 0.25f;
         const float FlashSeconds = 0.18f;
         const float FloatSeconds = 1.2f;
+        const float DepthScale = 0.8f;
 
-        static readonly Vector3 origin = new Vector3(-600f, 0f, -600f);
-        static readonly int colorId = Shader.PropertyToID("_Color");
-        static readonly int baseColorId = Shader.PropertyToID("_BaseColor");
+        static readonly Vector3 origin = new Vector3(-600f, -600f, 0f);
 
         sealed class Actor
         {
             public Combatant Unit;
             public Transform Root;
-            public MeshRenderer Body;
+            public SpriteRenderer Body;
+            public SpriteRenderer Shadow;
             public Vector3 Home;
-            public Vector3 Size;
+            public Vector2 Size;
             public Color BaseColor;
             public Vector3 LungeDirection;
             public float LungeTime = -1f;
@@ -43,17 +44,22 @@ namespace AdventurerCity.View
         readonly Dictionary<Combatant, Actor> actors = new Dictionary<Combatant, Actor>();
         readonly List<Combatant> stale = new List<Combatant>();
         readonly List<FloatingText> texts = new List<FloatingText>();
-        MaterialPropertyBlock block;
+        readonly List<Light2D> torches = new List<Light2D>();
 
         GameRunner runner;
         CameraRig cityRig;
         Camera arenaCamera;
         Transform arenaRoot;
-        MeshRenderer floorRenderer;
+        SpriteRenderer floor;
+        SpriteRenderer wall;
+        ParticleSystem bursts;
+        Light2D flash;
         int floorDungeonId;
         Battle shownBattle;
         int eventCursor;
         float shakeTime;
+        float hitStop;
+        float flashTime;
         GUIStyle label;
         GUIStyle bigLabel;
         GUIStyle panelStyle;
@@ -65,28 +71,50 @@ namespace AdventurerCity.View
         {
             runner = owner;
             cityRig = rig;
-            block = new MaterialPropertyBlock();
             arenaRoot = new GameObject("DungeonArena").transform;
             arenaRoot.position = origin;
 
-            var floor = Materials.CreateCube("Floor", arenaRoot);
-            floor.transform.localScale = new Vector3(26f, 0.2f, 16f);
-            floor.transform.localPosition = new Vector3(0f, -0.1f, 0f);
-            floorRenderer = floor.GetComponent<MeshRenderer>();
-            floorRenderer.sharedMaterial = Materials.Get(new Color(0.22f, 0.2f, 0.19f));
-            for (var i = 0; i < 6; i++)
+            floor = PixelArt.Create("Floor", arenaRoot, PixelArt.Stone(new Color32(150, 146, 142, 255)), -32000);
+            floor.drawMode = SpriteDrawMode.Tiled;
+            floor.size = new Vector2(28f, 12f);
+            floor.transform.localPosition = new Vector3(-0.5f, -0.5f, 0f);
+
+            wall = PixelArt.Create("Wall", arenaRoot, PixelArt.Stone(new Color32(110, 104, 100, 255)), -31990);
+            wall.drawMode = SpriteDrawMode.Tiled;
+            wall.size = new Vector2(28f, 4f);
+            wall.transform.localPosition = new Vector3(-0.5f, 7.2f, 0f);
+
+            for (var i = 0; i < 4; i++)
             {
-                var pillar = Materials.CreateCube("Pillar", arenaRoot);
-                pillar.transform.localScale = new Vector3(1.2f, 4f, 1.2f);
-                pillar.transform.localPosition = new Vector3(-10f + i * 4f, 2f, 7.2f);
-                pillar.GetComponent<MeshRenderer>().sharedMaterial = Materials.Get(new Color(0.3f, 0.27f, 0.25f));
+                var x = -9f + i * 6f;
+                var pillar = PixelArt.Create("Pillar", arenaRoot, PixelArt.Square(), -31980);
+                pillar.color = new Color(0.32f, 0.29f, 0.27f);
+                pillar.transform.localScale = new Vector3(1f, 4.2f, 1f);
+                pillar.transform.localPosition = new Vector3(x, 6.3f, 0f);
+                var torch = Effects.PointLight("Torch", arenaRoot, new Color(1f, 0.62f, 0.3f), 6.5f, 1.2f);
+                torch.transform.localPosition = new Vector3(x + 1.6f, 5f, 0f);
+                torches.Add(torch);
+                var fire = Effects.Smoke(arenaRoot, -31970);
+                fire.transform.localPosition = new Vector3(x + 1.6f, 5.1f, 0f);
+                var main = fire.main;
+                main.startColor = new Color(1f, 0.6f, 0.25f, 0.9f);
+                main.startLifetime = new ParticleSystem.MinMaxCurve(0.3f, 0.6f);
+                main.startSize = new ParticleSystem.MinMaxCurve(0.15f, 0.3f);
+                var emission = fire.emission;
+                emission.rateOverTime = 14f;
             }
+
+            flash = Effects.PointLight("Flash", arenaRoot, new Color(1f, 0.4f, 0.25f), 14f, 0f);
+            bursts = Effects.Burst(arenaRoot, 30000, 3f, 0.18f);
 
             var cameraObject = new GameObject("DungeonCamera");
             arenaCamera = cameraObject.AddComponent<Camera>();
+            arenaCamera.orthographic = true;
+            arenaCamera.orthographicSize = 6.4f;
             arenaCamera.clearFlags = CameraClearFlags.SolidColor;
-            arenaCamera.backgroundColor = new Color(0.06f, 0.06f, 0.08f);
-            arenaCamera.farClipPlane = 200f;
+            arenaCamera.backgroundColor = new Color(0.04f, 0.04f, 0.06f);
+            arenaCamera.nearClipPlane = 0.1f;
+            arenaCamera.farClipPlane = 100f;
             arenaCamera.enabled = false;
         }
 
@@ -144,7 +172,10 @@ namespace AdventurerCity.View
             if (floorDungeonId != run.Dungeon.Id)
             {
                 floorDungeonId = run.Dungeon.Id;
-                floorRenderer.sharedMaterial = Materials.Get(FloorColor(run.Dungeon.Id));
+                var tint = FloorColor(run.Dungeon.Id) * 3.2f;
+                tint.a = 1f;
+                floor.color = tint;
+                wall.color = tint * 0.8f;
             }
             if (run.Battle != shownBattle)
             {
@@ -163,8 +194,11 @@ namespace AdventurerCity.View
             SyncActors(run);
             if (shownBattle != null) ConsumeEvents(shownBattle);
             Animate();
+            AnimateLights();
             PlaceCamera();
         }
+
+        static Vector3 ArenaPoint(float x, float depth) => new Vector3(x, depth * DepthScale, 0f);
 
         void SyncActors(Expedition run)
         {
@@ -177,16 +211,16 @@ namespace AdventurerCity.View
                 Vector3 home;
                 if (hero.Role == CombatRole.Tank)
                 {
-                    home = new Vector3(-1.4f, 0f, (tanks % 2 == 0 ? 1f : -1f) * (tanks / 2 + (tanks % 2)) * 1.6f);
+                    home = ArenaPoint(-1.4f, (tanks % 2 == 0 ? 1f : -1f) * (tanks / 2 + (tanks % 2)) * 1.6f);
                     tanks++;
                 }
                 else if (IsBackline(hero.Role))
                 {
-                    home = new Vector3(-6f, 0f, (backline++ - (backCount - 1) * 0.5f) * 2f);
+                    home = ArenaPoint(-6f, (backline++ - (backCount - 1) * 0.5f) * 2f);
                 }
                 else
                 {
-                    home = new Vector3(-2.8f, 0f, (melee % 2 == 0 ? 1f : -1f) * (2f + melee / 2 * 1.6f));
+                    home = ArenaPoint(-2.8f, (melee % 2 == 0 ? 1f : -1f) * (2f + melee / 2 * 1.6f));
                     melee++;
                 }
                 if (!actors.ContainsKey(hero)) Spawn(hero, home);
@@ -198,28 +232,47 @@ namespace AdventurerCity.View
             for (var i = 0; i < enemies.Count; i++)
             {
                 if (actors.ContainsKey(enemies[i])) continue;
-                var home = bossRoom && i == 0 ? new Vector3(4.2f, 0f, 0f) : new Vector3(2.4f + i % 2 * 1.6f, 0f, (i - (enemies.Count - 1) * 0.5f) * 2.3f);
-                if (bossRoom && i >= 1) home = new Vector3(2.2f, 0f, i % 2 == 0 ? 3f : -3f);
+                var home = bossRoom && i == 0 ? ArenaPoint(4.2f, 0f) : ArenaPoint(2.4f + i % 2 * 1.6f, (i - (enemies.Count - 1) * 0.5f) * 2.3f);
+                if (bossRoom && i >= 1) home = ArenaPoint(2.2f, i % 2 == 0 ? 3f : -3f);
                 Spawn(enemies[i], home);
             }
         }
 
         void Spawn(Combatant unit, Vector3 home)
         {
-            var size = unit.IsHero ? new Vector3(0.9f, 1.6f, 0.9f) : EnemySize(unit.Enemy);
-            var body = Materials.CreateCube(unit.Name, arenaRoot);
-            body.transform.localScale = size;
-            var renderer = body.GetComponent<MeshRenderer>();
-            renderer.sharedMaterial = Materials.Get(Color.white);
+            var size3 = unit.IsHero ? new Vector3(0.9f, 1.6f, 0.9f) : EnemySize(unit.Enemy);
+            var beast = !unit.IsHero && size3.z > size3.y;
+            var size = new Vector2(Mathf.Max(size3.x, size3.z), size3.y);
+            var root = new GameObject(unit.Name).transform;
+            root.SetParent(arenaRoot, false);
+            var body = PixelArt.Create("Body", root, PixelArt.Figure(unit.IsHero, beast));
+            var spriteSize = body.sprite.bounds.size;
+            body.transform.localScale = new Vector3(size.x / spriteSize.x * (unit.IsHero ? 1f : -1f), size.y / spriteSize.y, 1f);
+            var shadow = PixelArt.Create("Shadow", root, PixelArt.Dot());
+            shadow.color = new Color(0f, 0f, 0f, 0.45f);
+            shadow.transform.localScale = new Vector3(size.x * 1.3f, size.x * 0.45f, 1f);
             actors[unit] = new Actor
             {
                 Unit = unit,
-                Root = body.transform,
-                Body = renderer,
+                Root = root,
+                Body = body,
+                Shadow = shadow,
                 Home = home,
                 Size = size,
                 BaseColor = unit.IsHero ? HeroColor(unit.Class) : EnemyColor(unit.Enemy)
             };
+        }
+
+        void Emit(Actor actor, Color color, int count)
+        {
+            if (actor == null) return;
+            var parameters = new ParticleSystem.EmitParams
+            {
+                position = actor.Root.position + Vector3.up * (actor.Size.y * 0.5f),
+                startColor = color,
+                applyShapeToPosition = true
+            };
+            bursts.Emit(parameters, count);
         }
 
         void ConsumeEvents(Battle battle)
@@ -231,13 +284,15 @@ namespace AdventurerCity.View
                 if (e.Kind == BattleEventKind.Enrage)
                 {
                     shakeTime = 0.3f;
+                    Flash(new Color(1f, 0.25f, 0.2f), 2.5f);
                     foreach (var actor in actors.Values)
                         if (!actor.Unit.IsHero && actor.Unit.Active)
                             AddText(actor, "ЯРОСТЬ!", new Color(1f, 0.3f, 0.2f), 18);
                     continue;
                 }
                 actors.TryGetValue(e.Target ?? e.Source, out var target);
-                actors.TryGetValue(e.Source, out var source);
+                Actor source = null;
+                if (e.Source != null) actors.TryGetValue(e.Source, out source);
                 switch (e.Kind)
                 {
                     case BattleEventKind.Hit:
@@ -247,6 +302,8 @@ namespace AdventurerCity.View
                             source.LungeTime = 0f;
                         }
                         Flash(target, new Color(1f, 0.35f, 0.3f));
+                        Emit(target, e.Target.IsHero ? new Color(1f, 0.35f, 0.3f) : new Color(1f, 0.92f, 0.7f), e.Crit ? 14 : 5);
+                        if (e.Crit) hitStop = Mathf.Max(hitStop, 0.07f);
                         AddText(target, e.Crit ? $"{Mathf.CeilToInt(e.Amount)}!" : $"-{Mathf.CeilToInt(e.Amount)}",
                             e.Crit ? new Color(1f, 0.85f, 0.2f) : e.Target.IsHero ? new Color(1f, 0.45f, 0.4f) : Color.white, e.Crit ? 20 : 15);
                         break;
@@ -255,39 +312,62 @@ namespace AdventurerCity.View
                         break;
                     case BattleEventKind.Heal:
                         Flash(target, new Color(0.5f, 1f, 0.5f));
+                        Emit(target, new Color(0.45f, 1f, 0.5f), 6);
                         AddText(target, $"+{Mathf.CeilToInt(e.Amount)}", new Color(0.45f, 1f, 0.45f), 15);
                         break;
                     case BattleEventKind.CastStart:
                         if (source != null) source.CastTotal = Mathf.Max(0.1f, e.Amount);
                         break;
                     case BattleEventKind.Interrupt:
+                        Emit(target, new Color(0.6f, 0.8f, 1f), 10);
                         AddText(target, "Прервано!", new Color(0.6f, 0.8f, 1f), 17);
                         break;
                     case BattleEventKind.Ability:
                         if (Classes.Get(e.Ability).Cast <= 0f && e.Ability != Ability.Revive)
+                        {
+                            Emit(source, Color.Lerp(source != null ? source.BaseColor : Color.white, Color.white, 0.5f), 6);
                             AddText(source, Classes.Get(e.Ability).Name, new Color(0.75f, 0.85f, 1f), 13);
+                        }
                         break;
                     case BattleEventKind.Revived:
+                        Emit(target, new Color(1f, 0.95f, 0.6f), 18);
                         AddText(target, "Поднят!", new Color(1f, 0.95f, 0.6f), 17);
                         break;
                     case BattleEventKind.Downed:
                         AddText(target, "Упал!", new Color(1f, 0.4f, 0.3f), 18);
                         break;
+                    case BattleEventKind.Killed:
+                        Emit(target, target != null ? target.BaseColor : Color.white, 20);
+                        hitStop = Mathf.Max(hitStop, 0.05f);
+                        break;
                     case BattleEventKind.Died:
                         AddText(source, "Погиб", new Color(1f, 0.2f, 0.2f), 20);
                         break;
                     case BattleEventKind.Summon:
+                        Emit(source, new Color(1f, 0.7f, 0.3f), 16);
                         AddText(source, "Подмога!", new Color(1f, 0.7f, 0.3f), 18);
                         break;
                     case BattleEventKind.EnemyAoe:
                         shakeTime = 0.45f;
+                        hitStop = Mathf.Max(hitStop, 0.1f);
+                        Flash(new Color(1f, 0.55f, 0.25f), 3f);
                         AddText(source, CombatData.Get(e.Source.Enemy).AoeName.ToUpper() + "!", new Color(1f, 0.6f, 0.2f), 24);
                         foreach (var actor in actors.Values)
                             if (actor.Unit.IsHero)
+                            {
                                 Flash(actor, new Color(1f, 0.6f, 0.3f));
+                                Emit(actor, new Color(1f, 0.55f, 0.25f), 8);
+                            }
                         break;
                 }
             }
+        }
+
+        void Flash(Color color, float intensity)
+        {
+            flash.color = color;
+            flash.intensity = intensity;
+            flashTime = 0.35f;
         }
 
         void Flash(Actor actor, Color color)
@@ -300,7 +380,7 @@ namespace AdventurerCity.View
         void AddText(Actor actor, string text, Color color, int size)
         {
             if (actor == null) return;
-            var jitter = new Vector3(Random.Range(-0.3f, 0.3f), 0f, Random.Range(-0.2f, 0.2f));
+            var jitter = new Vector3(Random.Range(-0.3f, 0.3f), Random.Range(-0.1f, 0.2f), 0f);
             texts.Add(new FloatingText
             {
                 Text = text,
@@ -313,6 +393,11 @@ namespace AdventurerCity.View
         void Animate()
         {
             var dt = Time.deltaTime;
+            if (hitStop > 0f)
+            {
+                hitStop -= dt;
+                dt = 0f;
+            }
             foreach (var actor in actors.Values)
             {
                 var unit = actor.Unit;
@@ -322,6 +407,10 @@ namespace AdventurerCity.View
                     actor.LungeTime += dt;
                     if (actor.LungeTime >= LungeSeconds) actor.LungeTime = -1f;
                     else offset = actor.LungeDirection * (Mathf.Sin(Mathf.PI * actor.LungeTime / LungeSeconds) * 0.9f);
+                }
+                else if (unit.Active)
+                {
+                    offset.y = Mathf.Abs(Mathf.Sin(Time.time * 3f + actor.Home.x)) * 0.05f;
                 }
 
                 var color = actor.BaseColor;
@@ -334,49 +423,66 @@ namespace AdventurerCity.View
                 }
 
                 var rotation = Quaternion.identity;
-                var height = actor.Size.y;
                 if (unit.Downed)
                 {
-                    rotation = Quaternion.Euler(0f, 0f, 90f);
-                    height = actor.Size.x;
+                    rotation = Quaternion.Euler(0f, 0f, unit.IsHero ? 90f : -90f);
                     color *= 0.6f;
                 }
                 if (unit.Dead)
                 {
                     if (actor.DeadTime < 0f) actor.DeadTime = 0f;
                     actor.DeadTime += dt;
-                    rotation = Quaternion.Euler(0f, 0f, 90f);
-                    height = actor.Size.x;
+                    rotation = Quaternion.Euler(0f, 0f, unit.IsHero ? 90f : -90f);
                     color = Color.Lerp(color, new Color(0.15f, 0.15f, 0.15f), Mathf.Clamp01(actor.DeadTime * 2f));
-                    if (!unit.IsHero && actor.DeadTime > 1.5f) offset.y -= Mathf.Min(1f, actor.DeadTime - 1.5f) * height;
+                    if (!unit.IsHero) color.a = 1f - Mathf.Clamp01((actor.DeadTime - 1f) * 1.5f);
                 }
+                color.a = Mathf.Min(1f, color.a);
 
-                actor.Root.localPosition = actor.Home + offset + Vector3.up * (height * 0.5f);
-                actor.Root.localRotation = rotation;
-                block.SetColor(colorId, color);
-                block.SetColor(baseColorId, color);
-                actor.Body.SetPropertyBlock(block);
+                actor.Root.localPosition = actor.Home + offset;
+                actor.Body.transform.localRotation = rotation;
+                actor.Body.transform.localPosition = unit.Downed || unit.Dead ? new Vector3(0f, actor.Size.x * 0.5f, 0f) : Vector3.zero;
+                actor.Body.color = color;
+                var order = PixelArt.SortOrder(actor.Home.y);
+                actor.Body.sortingOrder = order;
+                actor.Shadow.sortingOrder = order - 1;
+                actor.Shadow.enabled = !(unit.Dead && !unit.IsHero && actor.DeadTime > 1f);
             }
 
             for (var i = texts.Count - 1; i >= 0; i--)
             {
                 var text = texts[i];
-                text.Age += dt;
-                text.Position += Vector3.up * (dt * 1.1f);
+                text.Age += Time.deltaTime;
+                text.Position += Vector3.up * (Time.deltaTime * 1.1f);
                 if (text.Age >= FloatSeconds) texts.RemoveAt(i);
                 else texts[i] = text;
             }
         }
 
+        void AnimateLights()
+        {
+            for (var i = 0; i < torches.Count; i++)
+                torches[i].intensity = 1.1f + 0.25f * Mathf.PerlinNoise(Time.time * 4f, i * 7.3f);
+            if (flashTime > 0f)
+            {
+                flashTime -= Time.deltaTime;
+                flash.intensity = Mathf.Max(0f, flash.intensity - Time.deltaTime * 8f);
+            }
+            else
+            {
+                flash.intensity = 0f;
+            }
+        }
+
         void PlaceCamera()
         {
-            var position = origin + new Vector3(-0.5f, 7f, -8.2f);
+            var position = origin + new Vector3(-0.5f, 0.9f, -10f);
             if (shakeTime > 0f)
             {
                 shakeTime -= Time.deltaTime;
-                position += Random.insideUnitSphere * 0.25f;
+                var jitter = Random.insideUnitCircle * 0.18f;
+                position += new Vector3(jitter.x, jitter.y, 0f);
             }
-            arenaCamera.transform.SetPositionAndRotation(position, Quaternion.Euler(42f, 0f, 0f));
+            arenaCamera.transform.SetPositionAndRotation(position, Quaternion.identity);
         }
 
         void OnGUI()
@@ -398,8 +504,7 @@ namespace AdventurerCity.View
             {
                 var unit = actor.Unit;
                 if (!unit.IsHero && unit.Dead && actor.DeadTime > 1.5f) continue;
-                var head = arenaCamera.WorldToScreenPoint(actor.Root.position + Vector3.up * (actor.Size.y * 0.5f + 0.35f));
-                if (head.z < 0f) continue;
+                var head = arenaCamera.WorldToScreenPoint(actor.Root.position + Vector3.up * (actor.Size.y + 0.35f));
                 var x = head.x;
                 var y = Screen.height - head.y;
 
@@ -423,7 +528,6 @@ namespace AdventurerCity.View
             foreach (var text in texts)
             {
                 var point = arenaCamera.WorldToScreenPoint(text.Position);
-                if (point.z < 0f) continue;
                 var alpha = 1f - text.Age / FloatSeconds;
                 var style = new GUIStyle(bigLabel) { fontSize = text.Size };
                 var color = text.Color;

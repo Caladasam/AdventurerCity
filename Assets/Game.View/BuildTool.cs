@@ -14,7 +14,7 @@ namespace AdventurerCity.View
 
     public sealed class BuildTool : MonoBehaviour
     {
-        readonly List<MeshRenderer> ghosts = new List<MeshRenderer>();
+        readonly List<SpriteRenderer> ghosts = new List<SpriteRenderer>();
         readonly List<(int X, int Y)> path = new List<(int X, int Y)>();
 
         GameRunner runner;
@@ -177,13 +177,14 @@ namespace AdventurerCity.View
         void ShowGhost(CellRect rect, bool ok, float height)
         {
             if (ghostsUsed == ghosts.Count)
-                ghosts.Add(Materials.CreateCube("Ghost", ghostRoot).GetComponent<MeshRenderer>());
+                ghosts.Add(PixelArt.Create("Ghost", ghostRoot, PixelArt.Square(), 30000));
 
             var ghost = ghosts[ghostsUsed++];
             ghost.gameObject.SetActive(true);
-            ghost.sharedMaterial = Materials.Get(ok ? Palette.GhostOk : Palette.GhostBad);
-            ghost.transform.localScale = new Vector3(rect.Width * GridMath.CellSize, height, rect.Depth * GridMath.CellSize);
-            ghost.transform.position = GridMath.RectCenter(rect) + Vector3.up * (height * 0.5f + 0.05f);
+            var color = ok ? Palette.GhostOk : Palette.GhostBad;
+            ghost.color = height > 1f ? new Color(color.r, color.g, color.b, 0.3f) : color;
+            ghost.transform.localScale = new Vector3(rect.Width * GridMath.CellSize, rect.Depth * GridMath.CellSize, 1f);
+            ghost.transform.position = GridMath.RectCenter(rect);
         }
     }
 }

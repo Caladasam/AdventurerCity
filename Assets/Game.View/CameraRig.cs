@@ -4,17 +4,14 @@ namespace AdventurerCity.View
 {
     public sealed class CameraRig : MonoBehaviour
     {
-        const float RotateSpeed = 90f;
-        const float MinDistance = 10f;
-        const float MaxDistance = 120f;
+        const float MinSize = 4f;
+        const float MaxSize = 30f;
 
         Camera cam;
         Vector3 pivot;
         Vector2 bounds;
         Vector3 lastMouse;
-        float yaw = 45f;
-        float pitch = 55f;
-        float distance = 45f;
+        float size = 12f;
 
         public Camera Camera => cam;
 
@@ -28,9 +25,12 @@ namespace AdventurerCity.View
                 var go = new GameObject("Main Camera") { tag = "MainCamera" };
                 cam = go.AddComponent<Camera>();
             }
+            cam.orthographic = true;
             cam.clearFlags = CameraClearFlags.SolidColor;
-            cam.backgroundColor = Palette.Sky;
-            cam.farClipPlane = 500f;
+            cam.backgroundColor = Palette.Background;
+            cam.nearClipPlane = 0.1f;
+            cam.farClipPlane = 100f;
+            cam.transform.rotation = Quaternion.identity;
             Apply();
         }
 
@@ -41,14 +41,9 @@ namespace AdventurerCity.View
                 cell = default;
                 return false;
             }
-            var ray = cam.ScreenPointToRay(Input.mousePosition);
-            if (new Plane(Vector3.up, Vector3.zero).Raycast(ray, out var hit))
-            {
-                cell = GridMath.WorldToCell(ray.GetPoint(hit));
-                return true;
-            }
-            cell = default;
-            return false;
+            var point = cam.ScreenToWorldPoint(Input.mousePosition);
+            cell = GridMath.WorldToCell(point);
+            return true;
         }
 
         void Update()
@@ -56,34 +51,30 @@ namespace AdventurerCity.View
             if (!cam.enabled) return;
             var dt = Time.unscaledDeltaTime;
             var input = Vector3.zero;
-            if (Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.UpArrow)) input.z += 1f;
-            if (Input.GetKey(KeyCode.S) || Input.GetKey(KeyCode.DownArrow)) input.z -= 1f;
+            if (Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.UpArrow)) input.y += 1f;
+            if (Input.GetKey(KeyCode.S) || Input.GetKey(KeyCode.DownArrow)) input.y -= 1f;
             if (Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.RightArrow)) input.x += 1f;
             if (Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.LeftArrow)) input.x -= 1f;
-            if (Input.GetKey(KeyCode.Q)) yaw += RotateSpeed * dt;
-            if (Input.GetKey(KeyCode.E)) yaw -= RotateSpeed * dt;
-
-            var heading = Quaternion.Euler(0f, yaw, 0f);
-            pivot += heading * input.normalized * (distance * 0.8f * dt);
+            pivot += input.normalized * (size * 1.2f * dt);
 
             if (Input.GetMouseButtonDown(2)) lastMouse = Input.mousePosition;
             if (Input.GetMouseButton(2))
             {
                 var delta = Input.mousePosition - lastMouse;
-                pivot -= heading * new Vector3(delta.x, 0f, delta.y) * (distance * 0.002f);
+                pivot -= delta * (2f * size / Screen.height);
                 lastMouse = Input.mousePosition;
             }
 
-            distance = Mathf.Clamp(distance * (1f - Input.mouseScrollDelta.y * 0.1f), MinDistance, MaxDistance);
+            size = Mathf.Clamp(size * (1f - Input.mouseScrollDelta.y * 0.1f), MinSize, MaxSize);
             pivot.x = Mathf.Clamp(pivot.x, 0f, bounds.x);
-            pivot.z = Mathf.Clamp(pivot.z, 0f, bounds.y);
+            pivot.y = Mathf.Clamp(pivot.y, 0f, bounds.y);
             Apply();
         }
 
         void Apply()
         {
-            var rotation = Quaternion.Euler(pitch, yaw, 0f);
-            cam.transform.SetPositionAndRotation(pivot + rotation * new Vector3(0f, 0f, -distance), rotation);
+            cam.orthographicSize = size;
+            cam.transform.position = new Vector3(pivot.x, pivot.y, -10f);
         }
     }
 }

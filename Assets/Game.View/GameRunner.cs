@@ -22,6 +22,8 @@ namespace AdventurerCity.View
         int lastAutosaveDay;
 
         public World Sim { get; private set; }
+        public CameraRig Rig { get; private set; }
+        public BuildTool Tool => tool;
         public int SpeedIndex { get; private set; }
         public IReadOnlyList<int> Speeds => speeds;
         public List<SimEvent> Log { get; } = new List<SimEvent>();
@@ -42,10 +44,10 @@ namespace AdventurerCity.View
             Sim.RealtimeCombat = true;
             lastAutosaveDay = Sim.Day;
 
-            CreateLight();
             var mapSize = new Vector2(Sim.Grid.Width * GridMath.CellSize, Sim.Grid.Height * GridMath.CellSize);
             var rig = gameObject.AddComponent<CameraRig>();
-            rig.Init(new Vector3(mapSize.x * 0.5f, 0f, mapSize.y * 0.5f), mapSize);
+            rig.Init(new Vector3(mapSize.x * 0.5f, mapSize.y * 0.5f, 0f), mapSize);
+            Rig = rig;
             cityRenderer = gameObject.AddComponent<CityRenderer>();
             cityRenderer.Init(this);
             var hud = gameObject.AddComponent<Hud>();
@@ -129,17 +131,6 @@ namespace AdventurerCity.View
             tool.Cancel();
             tool.SelectedId = 0;
             cityRenderer.ResetView();
-        }
-
-        static void CreateLight()
-        {
-            if (FindAnyObjectByType<Light>() != null) return;
-            var light = new GameObject("Sun").AddComponent<Light>();
-            light.type = LightType.Directional;
-            light.intensity = 1.1f;
-            light.shadows = LightShadows.Soft;
-            light.transform.rotation = Quaternion.Euler(50f, -30f, 0f);
-            RenderSettings.ambientLight = new Color(0.5f, 0.5f, 0.55f);
         }
     }
 }
