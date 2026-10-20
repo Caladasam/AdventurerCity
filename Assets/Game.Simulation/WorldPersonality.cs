@@ -241,6 +241,7 @@ namespace AdventurerCity.Simulation
                 else hero.Trait2 = HeroTrait.Deathtouched;
             }
             hero.HomeId = FindHomeFor(hero.HomeId);
+            if (hero.HomeId == 0) hero.HomeId = MakeRoom(fallen.Hero.HomeId);
             State.Citizens.Add(hero);
             workforceDirty = true;
             AddChronicle(hero.Id, "воскрешён(а) в храме — уже не тот(та), что прежде");
@@ -256,6 +257,51 @@ namespace AdventurerCity.Simulation
                 if (building.Kind == BuildingKind.House && building.IsComplete && building.Residents < HouseLevel(building).Capacity)
                     return building.Id;
             return 0;
+        }
+
+        int MakeRoom(int previous)
+        {
+            var house = GetBuilding(previous);
+            if (house == null || house.Kind != BuildingKind.House || !house.IsComplete) house = null;
+            for (var pass = 0; pass < 2; pass++)
+            {
+                foreach (var building in State.Buildings)
+                {
+                    if (house != null && building != house) continue;
+                    if (building.Kind != BuildingKind.House || !building.IsComplete) continue;
+                    for (var i = State.Citizens.Count - 1; i >= 0; i--)
+                    {
+                        var citizen = State.Citizens[i];
+                        if (citizen.HomeId != building.Id || citizen.IsHero) continue;
+                        State.Citizens.RemoveAt(i);
+                        workforceDirty = true;
+                        Report($"{CitizenInfo.FullName(citizen)} уступил(а) место в доме герою и покинул(а) город");
+                        return building.Id;
+                    }
+                }
+                house = null;
+            }
+            return 0;
+        }
+
+        void RehouseHeroes()
+        {
+            for (var i = 0; i < State.Citizens.Count; i++)
+            {
+                var hero = State.Citizens[i];
+                if (!hero.IsHero) continue;
+                var home = GetBuilding(hero.HomeId);
+                if (home != null && home.Kind == BuildingKind.House) continue;
+                var found = FindHomeFor(0);
+                if (found != 0) GetBuilding(found).Residents++;
+                else found = MakeRoom(0);
+                if (found == 0) return;
+                i = CitizenIndex(hero.Id);
+                hero.HomeId = found;
+                State.Citizens[i] = hero;
+                workforceDirty = true;
+                Report($"{CitizenInfo.FullName(hero)} получил(а) жильё");
+            }
         }
 
         int DailyRecovery(in Citizen hero)

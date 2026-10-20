@@ -113,6 +113,8 @@ namespace AdventurerCity.Simulation
     public static class Items
     {
         public const int MaxBaseTier = 3;
+        public const int Version = 1;
+        const float OldAffixScale = 0.4f;
         public static readonly int[] BaseTierLevels = { 1, 3, 6, 9 };
         public static readonly int[] AffixTierLevels = { 1, 4, 7 };
         public const float CombatRoomDropChance = 0.25f;
@@ -129,18 +131,18 @@ namespace AdventurerCity.Simulation
 
         static readonly ItemBase[] bases =
         {
-            new ItemBase { Id = 1, Noun = "меч", Gender = 'm', Slot = ItemSlot.Weapon, MainValues = new[] { 0f, 1f, 3f, 5f }, Implicit = StatKind.DamagePct, ImplicitValues = new[] { 0.03f, 0.05f, 0.07f, 0.1f } },
-            new ItemBase { Id = 2, Noun = "кинжал", Gender = 'm', Slot = ItemSlot.Weapon, MainValues = new[] { 0f, 1f, 2f, 4f }, Implicit = StatKind.CritPct, ImplicitValues = new[] { 0.02f, 0.03f, 0.04f, 0.06f } },
-            new ItemBase { Id = 3, Noun = "посох", Gender = 'm', Slot = ItemSlot.Weapon, MainValues = new[] { 0f, 0f, 1f, 2f }, Implicit = StatKind.HealingPct, ImplicitValues = new[] { 0.06f, 0.2f, 0.4f, 0.6f } },
-            new ItemBase { Id = 4, Noun = "лук", Gender = 'm', Slot = ItemSlot.Weapon, MainValues = new[] { 0f, 1f, 2f, 4f }, Implicit = StatKind.AttackSpeedPct, ImplicitValues = new[] { 0.03f, 0.05f, 0.07f, 0.1f } },
-            new ItemBase { Id = 5, Noun = "жезл", Gender = 'm', Slot = ItemSlot.Weapon, MainValues = new[] { 0f, 1f, 2f, 3f }, Implicit = StatKind.CooldownPct, ImplicitValues = new[] { 0.03f, 0.05f, 0.07f, 0.09f } },
-            new ItemBase { Id = 11, Noun = "кираса", Gender = 'f', Slot = ItemSlot.Armor, Main = StatKind.Armor, MainValues = new[] { 1f, 5f, 9f, 14f }, Implicit = StatKind.Health, ImplicitValues = new[] { 5f, 10f, 20f, 30f } },
-            new ItemBase { Id = 12, Noun = "кольчуга", Gender = 'f', Slot = ItemSlot.Armor, Main = StatKind.Armor, MainValues = new[] { 1f, 3f, 6f, 9f }, Implicit = StatKind.HealthPct, ImplicitValues = new[] { 0.02f, 0.03f, 0.04f, 0.05f } },
-            new ItemBase { Id = 13, Noun = "кожанка", Gender = 'f', Slot = ItemSlot.Armor, Main = StatKind.Armor, MainValues = new[] { 0f, 2f, 4f, 6f }, Implicit = StatKind.DodgePct, ImplicitValues = new[] { 0.02f, 0.03f, 0.04f, 0.05f } },
-            new ItemBase { Id = 14, Noun = "мантия", Gender = 'f', Slot = ItemSlot.Armor, Main = StatKind.Armor, MainValues = new[] { 0f, 1f, 2f, 3f }, Implicit = StatKind.ManaRegen, ImplicitValues = new[] { 0.3f, 0.6f, 1f, 1.5f } },
-            new ItemBase { Id = 21, Noun = "кольцо", Gender = 'n', Slot = ItemSlot.Trinket, Implicit = StatKind.CritPct, ImplicitValues = new[] { 0.01f, 0.02f, 0.03f, 0.04f } },
-            new ItemBase { Id = 22, Noun = "амулет", Gender = 'm', Slot = ItemSlot.Trinket, Implicit = StatKind.HealthPct, ImplicitValues = new[] { 0.02f, 0.03f, 0.05f, 0.06f } },
-            new ItemBase { Id = 23, Noun = "талисман", Gender = 'm', Slot = ItemSlot.Trinket, Implicit = StatKind.HealingPct, ImplicitValues = new[] { 0.04f, 0.06f, 0.08f, 0.1f } }
+            new ItemBase { Id = 1, Noun = "меч", Gender = 'm', Slot = ItemSlot.Weapon, MainValues = new[] { 0f, 0.5f, 1.5f, 2.5f }, Implicit = StatKind.DamagePct, ImplicitValues = new[] { 0.01f, 0.025f, 0.035f, 0.05f } },
+            new ItemBase { Id = 2, Noun = "кинжал", Gender = 'm', Slot = ItemSlot.Weapon, MainValues = new[] { 0f, 0.5f, 1f, 2f }, Implicit = StatKind.CritPct, ImplicitValues = new[] { 0.005f, 0.015f, 0.02f, 0.03f } },
+            new ItemBase { Id = 3, Noun = "посох", Gender = 'm', Slot = ItemSlot.Weapon, MainValues = new[] { 0f, 0f, 0.5f, 1f }, Implicit = StatKind.HealingPct, ImplicitValues = new[] { 0.02f, 0.1f, 0.2f, 0.3f } },
+            new ItemBase { Id = 4, Noun = "лук", Gender = 'm', Slot = ItemSlot.Weapon, MainValues = new[] { 0f, 0.5f, 1f, 2f }, Implicit = StatKind.AttackSpeedPct, ImplicitValues = new[] { 0.01f, 0.025f, 0.035f, 0.05f } },
+            new ItemBase { Id = 5, Noun = "жезл", Gender = 'm', Slot = ItemSlot.Weapon, MainValues = new[] { 0f, 0.5f, 1f, 1.5f }, Implicit = StatKind.CooldownPct, ImplicitValues = new[] { 0.01f, 0.025f, 0.035f, 0.045f } },
+            new ItemBase { Id = 11, Noun = "кираса", Gender = 'f', Slot = ItemSlot.Armor, Main = StatKind.Armor, MainValues = new[] { 0.5f, 2.5f, 4.5f, 7f }, Implicit = StatKind.Health, ImplicitValues = new[] { 1.5f, 5f, 10f, 15f } },
+            new ItemBase { Id = 12, Noun = "кольчуга", Gender = 'f', Slot = ItemSlot.Armor, Main = StatKind.Armor, MainValues = new[] { 0.5f, 1.5f, 3f, 4.5f }, Implicit = StatKind.HealthPct, ImplicitValues = new[] { 0.005f, 0.015f, 0.02f, 0.025f } },
+            new ItemBase { Id = 13, Noun = "кожанка", Gender = 'f', Slot = ItemSlot.Armor, Main = StatKind.Armor, MainValues = new[] { 0f, 1f, 2f, 3f }, Implicit = StatKind.DodgePct, ImplicitValues = new[] { 0.005f, 0.015f, 0.02f, 0.025f } },
+            new ItemBase { Id = 14, Noun = "мантия", Gender = 'f', Slot = ItemSlot.Armor, Main = StatKind.Armor, MainValues = new[] { 0f, 0.5f, 1f, 1.5f }, Implicit = StatKind.ManaRegen, ImplicitValues = new[] { 0.1f, 0.3f, 0.5f, 0.8f } },
+            new ItemBase { Id = 21, Noun = "кольцо", Gender = 'n', Slot = ItemSlot.Trinket, Implicit = StatKind.CritPct, ImplicitValues = new[] { 0.005f, 0.01f, 0.015f, 0.02f } },
+            new ItemBase { Id = 22, Noun = "амулет", Gender = 'm', Slot = ItemSlot.Trinket, Implicit = StatKind.HealthPct, ImplicitValues = new[] { 0.005f, 0.015f, 0.025f, 0.03f } },
+            new ItemBase { Id = 23, Noun = "талисман", Gender = 'm', Slot = ItemSlot.Trinket, Implicit = StatKind.HealingPct, ImplicitValues = new[] { 0.01f, 0.03f, 0.04f, 0.05f } }
         };
 
         static readonly ItemSlot[] weapon = { ItemSlot.Weapon };
@@ -151,19 +153,19 @@ namespace AdventurerCity.Simulation
 
         static readonly AffixDef[] affixes =
         {
-            new AffixDef { Id = 1, Prefix = true, Male = "Острый", Female = "Острая", Neuter = "Острое", Stat = StatKind.WeaponDamage, Slots = weapon, Min = new[] { 1f, 3f, 5f }, Max = new[] { 2f, 4f, 7f } },
-            new AffixDef { Id = 2, Prefix = true, Male = "Жестокий", Female = "Жестокая", Neuter = "Жестокое", Stat = StatKind.DamagePct, Slots = weaponTrinket, Min = new[] { 0.04f, 0.08f, 0.13f }, Max = new[] { 0.06f, 0.11f, 0.16f } },
-            new AffixDef { Id = 3, Prefix = true, Male = "Крепкий", Female = "Крепкая", Neuter = "Крепкое", Stat = StatKind.Health, Slots = armorTrinket, Min = new[] { 8f, 15f, 25f }, Max = new[] { 12f, 22f, 35f } },
-            new AffixDef { Id = 4, Prefix = true, Male = "Живучий", Female = "Живучая", Neuter = "Живучее", Stat = StatKind.HealthPct, Slots = armor, Min = new[] { 0.03f, 0.05f, 0.08f }, Max = new[] { 0.04f, 0.07f, 0.1f } },
-            new AffixDef { Id = 5, Prefix = true, Male = "Укреплённый", Female = "Укреплённая", Neuter = "Укреплённое", Stat = StatKind.Armor, Slots = armor, Min = new[] { 2f, 4f, 7f }, Max = new[] { 3f, 6f, 10f } },
-            new AffixDef { Id = 6, Prefix = true, Male = "Благословенный", Female = "Благословенная", Neuter = "Благословенное", Stat = StatKind.HealingPct, Slots = weaponTrinket, Min = new[] { 0.05f, 0.09f, 0.14f }, Max = new[] { 0.07f, 0.12f, 0.18f } },
-            new AffixDef { Id = 11, Male = "меткости", Stat = StatKind.CritPct, Slots = weaponTrinket, Min = new[] { 0.01f, 0.03f, 0.05f }, Max = new[] { 0.02f, 0.04f, 0.06f } },
-            new AffixDef { Id = 12, Male = "ловкости", Stat = StatKind.DodgePct, Slots = armorTrinket, Min = new[] { 0.01f, 0.03f, 0.05f }, Max = new[] { 0.02f, 0.04f, 0.06f } },
-            new AffixDef { Id = 13, Male = "быстроты", Stat = StatKind.AttackSpeedPct, Slots = weaponTrinket, Min = new[] { 0.03f, 0.06f, 0.09f }, Max = new[] { 0.05f, 0.08f, 0.12f } },
-            new AffixDef { Id = 14, Male = "мудрости", Stat = StatKind.ManaRegen, Slots = any, Min = new[] { 0.3f, 0.7f, 1.2f }, Max = new[] { 0.6f, 1.1f, 1.8f } },
-            new AffixDef { Id = 15, Male = "сосредоточенности", Stat = StatKind.CooldownPct, Slots = weaponTrinket, Min = new[] { 0.02f, 0.04f, 0.07f }, Max = new[] { 0.03f, 0.06f, 0.09f } },
-            new AffixDef { Id = 16, Male = "вампира", Stat = StatKind.Lifesteal, Slots = weapon, Min = new[] { 0.01f, 0.02f, 0.03f }, Max = new[] { 0.02f, 0.03f, 0.05f } },
-            new AffixDef { Id = 17, Male = "шипов", Stat = StatKind.Thorns, Slots = armor, Min = new[] { 0.04f, 0.07f, 0.11f }, Max = new[] { 0.06f, 0.1f, 0.15f } }
+            new AffixDef { Id = 1, Prefix = true, Male = "Острый", Female = "Острая", Neuter = "Острое", Stat = StatKind.WeaponDamage, Slots = weapon, Min = new[] { 0.5f, 1f, 2f }, Max = new[] { 1f, 1.5f, 3f } },
+            new AffixDef { Id = 2, Prefix = true, Male = "Жестокий", Female = "Жестокая", Neuter = "Жестокое", Stat = StatKind.DamagePct, Slots = weaponTrinket, Min = new[] { 0.015f, 0.03f, 0.05f }, Max = new[] { 0.025f, 0.045f, 0.065f } },
+            new AffixDef { Id = 3, Prefix = true, Male = "Крепкий", Female = "Крепкая", Neuter = "Крепкое", Stat = StatKind.Health, Slots = armorTrinket, Min = new[] { 3f, 6f, 10f }, Max = new[] { 5f, 9f, 14f } },
+            new AffixDef { Id = 4, Prefix = true, Male = "Живучий", Female = "Живучая", Neuter = "Живучее", Stat = StatKind.HealthPct, Slots = armor, Min = new[] { 0.01f, 0.02f, 0.03f }, Max = new[] { 0.015f, 0.03f, 0.04f } },
+            new AffixDef { Id = 5, Prefix = true, Male = "Укреплённый", Female = "Укреплённая", Neuter = "Укреплённое", Stat = StatKind.Armor, Slots = armor, Min = new[] { 0.5f, 1.5f, 3f }, Max = new[] { 1f, 2.5f, 4f } },
+            new AffixDef { Id = 6, Prefix = true, Male = "Благословенный", Female = "Благословенная", Neuter = "Благословенное", Stat = StatKind.HealingPct, Slots = weaponTrinket, Min = new[] { 0.02f, 0.035f, 0.055f }, Max = new[] { 0.03f, 0.05f, 0.07f } },
+            new AffixDef { Id = 11, Male = "меткости", Stat = StatKind.CritPct, Slots = weaponTrinket, Min = new[] { 0.005f, 0.01f, 0.02f }, Max = new[] { 0.01f, 0.015f, 0.025f } },
+            new AffixDef { Id = 12, Male = "ловкости", Stat = StatKind.DodgePct, Slots = armorTrinket, Min = new[] { 0.005f, 0.01f, 0.02f }, Max = new[] { 0.01f, 0.015f, 0.025f } },
+            new AffixDef { Id = 13, Male = "быстроты", Stat = StatKind.AttackSpeedPct, Slots = weaponTrinket, Min = new[] { 0.01f, 0.025f, 0.035f }, Max = new[] { 0.02f, 0.03f, 0.05f } },
+            new AffixDef { Id = 14, Male = "мудрости", Stat = StatKind.ManaRegen, Slots = any, Min = new[] { 0.1f, 0.3f, 0.5f }, Max = new[] { 0.2f, 0.4f, 0.7f } },
+            new AffixDef { Id = 15, Male = "сосредоточенности", Stat = StatKind.CooldownPct, Slots = weaponTrinket, Min = new[] { 0.01f, 0.015f, 0.03f }, Max = new[] { 0.015f, 0.025f, 0.035f } },
+            new AffixDef { Id = 16, Male = "вампира", Stat = StatKind.Lifesteal, Slots = weapon, Min = new[] { 0.005f, 0.01f, 0.015f }, Max = new[] { 0.01f, 0.015f, 0.02f } },
+            new AffixDef { Id = 17, Male = "шипов", Stat = StatKind.Thorns, Slots = armor, Min = new[] { 0.015f, 0.03f, 0.045f }, Max = new[] { 0.025f, 0.04f, 0.06f } }
         };
 
         static readonly UniqueDef[] uniques =
@@ -172,25 +174,25 @@ namespace AdventurerCity.Simulation
             {
                 Id = 1, Name = "Кирка бригадира", BaseId = 1, BaseTier = 1, Boss = EnemyKind.Grok,
                 Lore = "Грок пробивал ей своды. И головы.",
-                Mods = new[] { (StatKind.WeaponDamage, 4f), (StatKind.DamagePct, 0.2f), (StatKind.ExecutePct, 0.3f) }
+                Mods = new[] { (StatKind.WeaponDamage, 2f), (StatKind.DamagePct, 0.1f), (StatKind.ExecutePct, 0.15f) }
             },
             new UniqueDef
             {
                 Id = 2, Name = "Корона склепа", BaseId = 22, BaseTier = 2, Boss = EnemyKind.CryptKeeper,
                 Lore = "Холодная, но голова от неё не остывает.",
-                Mods = new[] { (StatKind.HealthPct, 0.12f), (StatKind.Lifesteal, 0.06f), (StatKind.ManaRegen, 1f) }
+                Mods = new[] { (StatKind.HealthPct, 0.06f), (StatKind.Lifesteal, 0.03f), (StatKind.ManaRegen, 0.5f) }
             },
             new UniqueDef
             {
                 Id = 3, Name = "Шкура вожака", BaseId = 13, BaseTier = 1, Boss = EnemyKind.PackLeader,
                 Lore = "Пахнет волком. Волки это чуют.",
-                Mods = new[] { (StatKind.Armor, 4f), (StatKind.DodgePct, 0.08f), (StatKind.Thorns, 0.15f) }
+                Mods = new[] { (StatKind.Armor, 2f), (StatKind.DodgePct, 0.04f), (StatKind.Thorns, 0.075f) }
             },
             new UniqueDef
             {
                 Id = 4, Name = "Сабля атамана", BaseId = 2, BaseTier = 1, Boss = EnemyKind.Chieftain,
                 Lore = "Добивает тех, кто уже не встанет.",
-                Mods = new[] { (StatKind.WeaponDamage, 3f), (StatKind.CritPct, 0.08f), (StatKind.ExecutePct, 0.4f) }
+                Mods = new[] { (StatKind.WeaponDamage, 1.5f), (StatKind.CritPct, 0.04f), (StatKind.ExecutePct, 0.2f) }
             }
         };
 
@@ -250,19 +252,19 @@ namespace AdventurerCity.Simulation
         {
             switch (stat)
             {
-                case StatKind.WeaponDamage: return $"+{value:0} к урону оружия";
-                case StatKind.DamagePct: return $"+{value * 100f:0}% урона";
+                case StatKind.WeaponDamage: return $"+{value:0.#} к урону оружия";
+                case StatKind.DamagePct: return $"+{value * 100f:0.#}% урона";
                 case StatKind.Health: return $"+{value:0} здоровья";
-                case StatKind.HealthPct: return $"+{value * 100f:0}% здоровья";
-                case StatKind.Armor: return $"+{value:0} брони";
-                case StatKind.HealingPct: return $"+{value * 100f:0}% силы лечения";
+                case StatKind.HealthPct: return $"+{value * 100f:0.#}% здоровья";
+                case StatKind.Armor: return $"+{value:0.#} брони";
+                case StatKind.HealingPct: return $"+{value * 100f:0.#}% силы лечения";
                 case StatKind.CritPct: return $"+{value * 100f:0.#}% шанса крита";
                 case StatKind.DodgePct: return $"+{value * 100f:0.#}% уклонения";
-                case StatKind.AttackSpeedPct: return $"+{value * 100f:0}% скорости атаки";
+                case StatKind.AttackSpeedPct: return $"+{value * 100f:0.#}% скорости атаки";
                 case StatKind.ManaRegen: return $"+{value:0.#} маны в секунду";
-                case StatKind.CooldownPct: return $"−{value * 100f:0}% перезарядки навыков";
+                case StatKind.CooldownPct: return $"−{value * 100f:0.#}% перезарядки навыков";
                 case StatKind.Lifesteal: return $"{value * 100f:0.#}% урона возвращается здоровьем";
-                case StatKind.Thorns: return $"{value * 100f:0}% полученного урона отражается во врага";
+                case StatKind.Thorns: return $"{value * 100f:0.#}% полученного урона отражается во врага";
                 default: return $"+{value * 100f:0}% урона по врагам с здоровьем ниже 35%";
             }
         }
@@ -309,6 +311,30 @@ namespace AdventurerCity.Simulation
             item.Name = def.Name;
             foreach (var (stat, value) in def.Mods) item.Mods.Add(new ItemMod { Stat = stat, Value = value });
             return item;
+        }
+
+        public static void Rescale(Item item)
+        {
+            if (item.UniqueId != 0)
+            {
+                var unique = MakeUnique(Unique(item.UniqueId), item.ItemLevel);
+                item.Mods = unique.Mods;
+                return;
+            }
+            var fresh = MakeBase(item.BaseId, item.BaseTier, item.ItemLevel);
+            item.Mods.RemoveAll(m => m.Implicit);
+            item.Mods.InsertRange(0, fresh.Mods);
+            foreach (var mod in item.Mods)
+                if (!mod.Implicit)
+                    mod.Value = RoundAffix(mod.Stat, mod.Value * OldAffixScale);
+        }
+
+        static float RoundAffix(StatKind stat, float value)
+        {
+            if (stat == StatKind.Health) return (float)Math.Round(value);
+            if (stat == StatKind.WeaponDamage || stat == StatKind.Armor) return (float)Math.Round(value * 2f) / 2f;
+            if (stat == StatKind.ManaRegen) return (float)Math.Round(value, 1);
+            return (float)Math.Round(value, 3);
         }
 
         public static Item Roll(Rng rng, int itemLevel, bool boss, bool heroic, EnemyKind bossKind)
@@ -359,7 +385,7 @@ namespace AdventurerCity.Simulation
                         tier = t;
                 if (tier > 0 && rng.Chance(0.35f)) tier--;
                 var value = affix.Min[tier] + (affix.Max[tier] - affix.Min[tier]) * rng.Value;
-                if (affix.Stat == StatKind.WeaponDamage || affix.Stat == StatKind.Health || affix.Stat == StatKind.Armor) value = (float)Math.Round(value);
+                value = RoundAffix(affix.Stat, value);
                 item.Mods.Add(new ItemMod { Stat = affix.Stat, Value = value, AffixId = affix.Id, Tier = AffixTierLevels.Length - tier });
                 if (affix.Prefix)
                 {

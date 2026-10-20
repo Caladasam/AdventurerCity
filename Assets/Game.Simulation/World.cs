@@ -194,6 +194,7 @@ namespace AdventurerCity.Simulation
             TickRaids();
             if (State.Tick % SimConstants.TicksPerDay == 0)
             {
+                RehouseHeroes();
                 Households.DailyUpdate(this);
                 DailyHeroes();
                 DailyTraining();
@@ -260,7 +261,7 @@ namespace AdventurerCity.Simulation
             var evicted = 0;
             for (var i = State.Citizens.Count - 1; i >= 0 && residents > keep; i--)
             {
-                if (State.Citizens[i].HomeId != homeId || keep > 0 && State.Citizens[i].IsHero) continue;
+                if (State.Citizens[i].HomeId != homeId || State.Citizens[i].IsHero) continue;
                 State.Citizens.RemoveAt(i);
                 residents--;
                 evicted++;

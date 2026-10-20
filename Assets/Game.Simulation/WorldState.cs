@@ -61,6 +61,7 @@ namespace AdventurerCity.Simulation
         public List<FallenHero> Fallen = new List<FallenHero>();
         public List<Item> Items = new List<Item>();
         public int NextItemId = 1;
+        public int ItemsVersion;
         public int NextExpeditionId = 1;
     }
 

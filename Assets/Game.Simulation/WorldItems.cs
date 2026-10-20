@@ -59,6 +59,11 @@ namespace AdventurerCity.Simulation
             foreach (var order in State.ForgeOrders)
                 if (order.BaseId == 0)
                     order.BaseId = order.Slot == GearSlot.Weapon ? 1 : 12;
+            if (State.ItemsVersion < Items.Version)
+            {
+                foreach (var item in State.Items) Items.Rescale(item);
+                State.ItemsVersion = Items.Version;
+            }
         }
 
         Item AddItem(Item item, bool report)
@@ -88,7 +93,7 @@ namespace AdventurerCity.Simulation
             fighter.Weapon += s[StatKind.WeaponDamage];
             fighter.DamageBonus += s[StatKind.DamagePct];
             fighter.MaxHp = (fighter.MaxHp + s[StatKind.Health]) * (1f + s[StatKind.HealthPct]);
-            fighter.Armor += (int)Math.Round(s[StatKind.Armor]);
+            fighter.Armor += (int)Math.Round(s[StatKind.Armor], MidpointRounding.AwayFromZero);
             fighter.HealPower *= 1f + s[StatKind.HealingPct];
             fighter.CritChance += s[StatKind.CritPct];
             fighter.DodgeChance += s[StatKind.DodgePct];

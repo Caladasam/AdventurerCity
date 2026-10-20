@@ -93,7 +93,7 @@ namespace AdventurerCity.Simulation
                 {
                     Kind = BuildingKind.Farm, Name = "Ферма", Width = 3, Depth = 3,
                     Cost = Cost(R(ResourceType.Planks, 10), R(ResourceType.Logs, 5)), BuildTicks = 20, Workers = 3,
-                    Recipe = new Recipe { Outputs = Cost(R(ResourceType.Grain, 4)), CycleTicks = 15 }
+                    Recipe = new Recipe { Outputs = Cost(R(ResourceType.Grain, 6)), CycleTicks = 15 }
                 },
                 new BuildingDef
                 {
@@ -110,7 +110,7 @@ namespace AdventurerCity.Simulation
                     Cost = Cost(R(ResourceType.Planks, 15), R(ResourceType.Gold, 30)), BuildTicks = 20, Workers = 2,
                     Recipe = new Recipe
                     {
-                        Inputs = Cost(R(ResourceType.Grain, 2)), Outputs = Cost(R(ResourceType.Bread, 3)), CycleTicks = 15
+                        Inputs = Cost(R(ResourceType.Grain, 2)), Outputs = Cost(R(ResourceType.Bread, 5)), CycleTicks = 10
                     }
                 },
                 new BuildingDef
