@@ -596,7 +596,7 @@ namespace AdventurerCity.View
             var header = new Rect(Screen.width * 0.5f - 260f, 40f, 520f, 64f);
             GUI.Box(header, GUIContent.none, panelStyle);
             var title = run != null
-                ? $"<b>{run.Dungeon.Name}{(run.Heroic ? " (героич.)" : "")}</b> · {Hud.PhaseText(run)}"
+                ? $"<b>{run.Dungeon.Name}{(run.Heroic ? " (героич.)" : "")}</b> · {UiText.PhaseText(run)}"
                 : $"<b>Оборона города</b> · {raid.Title}";
             var subtitle = run != null
                 ? $"{run.Elapsed:0} с в походе · добыча: {run.LootSummary}"

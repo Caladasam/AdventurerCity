@@ -95,7 +95,7 @@ namespace AdventurerCity.Simulation
             },
             new SiteDef
             {
-                Id = 5, Name = Dungeons.Get(Dungeons.FortressId).Name, Kind = SiteKind.Dungeon, MapX = -0.05f, MapY = -0.85f, Stage = 3,
+                Id = 5, Name = Dungeons.Get(Dungeons.FortressId).Name, Kind = SiteKind.Dungeon, MapX = 0.1f, MapY = -0.95f, Stage = 3,
                 Distance = Dungeons.Get(Dungeons.FortressId).Distance, DungeonId = Dungeons.FortressId,
                 RaidEnemies = new[] { EnemyKind.Cultist, EnemyKind.Cultist, EnemyKind.Zealot }
             }

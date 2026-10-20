@@ -56,7 +56,7 @@ namespace AdventurerCity.View
             citizensView.Init(this);
             raidView = gameObject.AddComponent<RaidView>();
             raidView.Init(this);
-            var hud = gameObject.AddComponent<Hud>();
+            var hud = gameObject.AddComponent<GameUi>();
             tool = gameObject.AddComponent<BuildTool>();
             tool.Init(this, rig, hud);
             hud.Init(this, tool);

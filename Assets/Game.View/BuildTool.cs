@@ -19,7 +19,7 @@ namespace AdventurerCity.View
 
         GameRunner runner;
         CameraRig rig;
-        Hud hud;
+        GameUi hud;
         Transform ghostRoot;
         int ghostsUsed;
         bool dragging;
@@ -31,7 +31,7 @@ namespace AdventurerCity.View
         public int SelectedId { get; set; }
         public string HoverMessage { get; private set; }
 
-        public void Init(GameRunner owner, CameraRig cameraRig, Hud overlay)
+        public void Init(GameRunner owner, CameraRig cameraRig, GameUi overlay)
         {
             runner = owner;
             rig = cameraRig;
