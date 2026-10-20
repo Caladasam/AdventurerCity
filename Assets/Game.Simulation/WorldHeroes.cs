@@ -16,6 +16,7 @@ namespace AdventurerCity.Simulation
         readonly List<ActiveExpedition> expeditions = new List<ActiveExpedition>();
         bool wageWarningShown;
         bool rationWarningShown;
+        int pendingCombatSteps;
 
         public IReadOnlyList<ActiveExpedition> Expeditions => expeditions;
 
@@ -182,13 +183,36 @@ namespace AdventurerCity.Simulation
             }
         }
 
+        public bool RealtimeCombat { get; set; }
+
+        public void AdvanceCombat(int steps)
+        {
+            steps = Math.Min(steps, pendingCombatSteps);
+            if (steps <= 0) return;
+            pendingCombatSteps -= steps;
+            RunCombatSteps(steps);
+        }
+
         void TickExpeditions()
         {
             FeedHungryHeroes();
+            if (!RealtimeCombat)
+            {
+                RunCombatSteps(SimConstants.CombatStepsPerTick);
+                return;
+            }
+
+            pendingCombatSteps += SimConstants.CombatStepsPerTick;
+            var backlog = pendingCombatSteps - SimConstants.CombatStepsPerTick;
+            if (backlog > 0) AdvanceCombat(backlog);
+        }
+
+        void RunCombatSteps(int steps)
+        {
             for (var e = expeditions.Count - 1; e >= 0; e--)
             {
                 var active = expeditions[e];
-                for (var i = 0; i < SimConstants.CombatStepsPerTick && !active.Run.IsDone; i++) active.Run.Step();
+                for (var i = 0; i < steps && !active.Run.IsDone; i++) active.Run.Step();
                 active.Record.Elapsed = active.Run.Elapsed;
                 if (!active.Run.IsDone) continue;
 

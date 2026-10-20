@@ -3,6 +3,40 @@ using System.Collections.Generic;
 
 namespace AdventurerCity.Simulation.Combat
 {
+    public enum BattleEventKind
+    {
+        Hit,
+        Dodge,
+        Heal,
+        CastStart,
+        Interrupt,
+        Taunt,
+        Downed,
+        Killed,
+        Died,
+        Revived,
+        Summon,
+        Collapse
+    }
+
+    public readonly struct BattleEvent
+    {
+        public readonly BattleEventKind Kind;
+        public readonly Combatant Source;
+        public readonly Combatant Target;
+        public readonly float Amount;
+        public readonly bool Crit;
+
+        public BattleEvent(BattleEventKind kind, Combatant source, Combatant target, float amount = 0f, bool crit = false)
+        {
+            Kind = kind;
+            Source = source;
+            Target = target;
+            Amount = amount;
+            Crit = crit;
+        }
+    }
+
     public enum BattleOutcome
     {
         Ongoing,
@@ -39,6 +73,7 @@ namespace AdventurerCity.Simulation.Combat
             foreach (var enemy in enemies) PrepareEnemy(enemy);
         }
 
+        public List<BattleEvent> Events { get; } = new List<BattleEvent>();
         public float Time { get; private set; }
         public BattleOutcome Outcome { get; private set; }
         public int XpPool { get; private set; }
@@ -92,6 +127,7 @@ namespace AdventurerCity.Simulation.Combat
                 {
                     unit.Downed = false;
                     unit.Dead = true;
+                    Emit(BattleEventKind.Died, unit, null);
                     Write($"{unit.Name} погибает");
                 }
                 return;
@@ -158,6 +194,7 @@ namespace AdventurerCity.Simulation.Combat
                     foreach (var threat in enemy.Threat.Values) max = Math.Max(max, threat);
                     enemy.Threat[guard] = max * 1.1f + 1f;
                     cd[GuardTaunt] = 8f;
+                    Emit(BattleEventKind.Taunt, guard, enemy);
                     Write($"{guard.Name} провоцирует {enemy.Name}");
                     return true;
                 }
@@ -187,6 +224,7 @@ namespace AdventurerCity.Simulation.Combat
             if (target.IsCasting)
             {
                 target.Cast = CastKind.None;
+                Emit(BattleEventKind.Interrupt, guard, target);
                 Write($"{guard.Name} прерывает {target.Name}");
             }
             Hit(guard, target, 0.8f, false, CombatData.ShieldBashThreatMultiplier);
@@ -294,6 +332,7 @@ namespace AdventurerCity.Simulation.Combat
                     enemy.SummonUsed = true;
                     reinforcements.Add(Combatant.FromEnemy(EnemyKind.Ratman));
                     reinforcements.Add(Combatant.FromEnemy(EnemyKind.Ratman));
+                    Emit(BattleEventKind.Summon, enemy, null);
                     Write($"{enemy.Name} зовёт подмогу");
                 }
                 if (cd[EnemySpecial] <= 0f)
@@ -317,6 +356,7 @@ namespace AdventurerCity.Simulation.Combat
             caster.Cast = kind;
             caster.CastTimer = seconds;
             caster.CastTarget = target;
+            Emit(BattleEventKind.CastStart, caster, target, seconds);
         }
 
         void ResolveCast(Combatant caster)
@@ -334,19 +374,24 @@ namespace AdventurerCity.Simulation.Combat
                     var healed = Math.Min(amount, target.MaxHp - target.Hp);
                     target.Hp += healed;
                     AddHealThreat(caster, healed);
+                    Emit(BattleEventKind.Heal, caster, target, healed);
                     break;
                 case CastKind.Revive:
                     if (target == null || !target.Downed) return;
                     target.Downed = false;
                     target.Hp = target.MaxHp * 0.3f;
                     target.Injured = true;
+                    Emit(BattleEventKind.Revived, caster, target);
                     Write($"{caster.Name} поднимает {target.Name}");
                     break;
                 case CastKind.ShamanHeal:
                     if (target == null || !target.Active) return;
-                    target.Hp = Math.Min(target.MaxHp, target.Hp + CombatData.ShamanHeal);
+                    var restored = Math.Min(CombatData.ShamanHeal, target.MaxHp - target.Hp);
+                    target.Hp += restored;
+                    Emit(BattleEventKind.Heal, caster, target, restored);
                     break;
                 case CastKind.Collapse:
+                    Emit(BattleEventKind.Collapse, caster, null);
                     Write("Свод рушится на отряд");
                     foreach (var hero in heroes)
                         if (hero.Active)
@@ -357,17 +402,22 @@ namespace AdventurerCity.Simulation.Combat
 
         void Hit(Combatant attacker, Combatant defender, float multiplier, bool magic, float threatMultiplier)
         {
-            if (!magic && rng.Chance(defender.DodgeChance)) return;
+            if (!magic && rng.Chance(defender.DodgeChance))
+            {
+                Emit(BattleEventKind.Dodge, attacker, defender);
+                return;
+            }
 
             var damage = (attacker.Weapon + attacker.Power) * multiplier;
             if (!magic)
                 damage *= 1f - defender.Armor / (defender.Armor + 50f + 10f * attacker.Level);
             damage = rng.Spread(damage, CombatData.DamageSpread);
-            if (rng.Chance(attacker.CritChance)) damage *= CombatData.CritMultiplier;
-            ApplyDamage(attacker, defender, damage, threatMultiplier);
+            var crit = rng.Chance(attacker.CritChance);
+            if (crit) damage *= CombatData.CritMultiplier;
+            ApplyDamage(attacker, defender, damage, threatMultiplier, crit);
         }
 
-        void ApplyDamage(Combatant attacker, Combatant defender, float damage, float threatMultiplier)
+        void ApplyDamage(Combatant attacker, Combatant defender, float damage, float threatMultiplier, bool crit = false)
         {
             if (defender.IsHero)
             {
@@ -379,6 +429,7 @@ namespace AdventurerCity.Simulation.Combat
 
             defender.Hp -= damage;
             if (defender.IsHero) defender.DamageTaken += damage;
+            Emit(BattleEventKind.Hit, attacker, defender, damage, crit);
             if (attacker.IsHero && !defender.IsHero)
                 defender.Threat[attacker] = (defender.Threat.TryGetValue(attacker, out var t) ? t : 0f) + damage * threatMultiplier;
 
@@ -389,12 +440,14 @@ namespace AdventurerCity.Simulation.Combat
             {
                 defender.Downed = true;
                 defender.DownedTimer = CombatData.DownedSeconds;
+                Emit(BattleEventKind.Downed, attacker, defender);
                 Write($"{defender.Name} падает");
             }
             else
             {
                 defender.Dead = true;
                 XpPool += CombatData.XpPerEnemyLevel * defender.Level;
+                Emit(BattleEventKind.Killed, attacker, defender);
                 Write($"{defender.Name} повержен");
             }
         }
@@ -505,6 +558,9 @@ namespace AdventurerCity.Simulation.Combat
                 hero.Injured = true;
             }
         }
+
+        void Emit(BattleEventKind kind, Combatant source, Combatant target, float amount = 0f, bool crit = false) =>
+            Events.Add(new BattleEvent(kind, source, target, amount, crit));
 
         void Write(string text) => log?.Add($"[{Time:0.0} с] {text}");
     }

@@ -61,6 +61,11 @@ namespace AdventurerCity.View
         {
             HoverMessage = null;
             ghostsUsed = 0;
+            if (runner.IsWatchingDungeon)
+            {
+                for (var i = 0; i < ghosts.Count; i++) ghosts[i].gameObject.SetActive(false);
+                return;
+            }
 
             if (Input.GetKeyDown(KeyCode.Escape) || Input.GetMouseButtonDown(1))
             {

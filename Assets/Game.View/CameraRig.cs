@@ -16,6 +16,8 @@ namespace AdventurerCity.View
         float pitch = 55f;
         float distance = 45f;
 
+        public Camera Camera => cam;
+
         public void Init(Vector3 focus, Vector2 mapSize)
         {
             pivot = focus;
@@ -34,6 +36,11 @@ namespace AdventurerCity.View
 
         public bool TryGetGroundCell(out Vector2Int cell)
         {
+            if (!cam.enabled)
+            {
+                cell = default;
+                return false;
+            }
             var ray = cam.ScreenPointToRay(Input.mousePosition);
             if (new Plane(Vector3.up, Vector3.zero).Raycast(ray, out var hit))
             {
@@ -46,6 +53,7 @@ namespace AdventurerCity.View
 
         void Update()
         {
+            if (!cam.enabled) return;
             var dt = Time.unscaledDeltaTime;
             var input = Vector3.zero;
             if (Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.UpArrow)) input.z += 1f;

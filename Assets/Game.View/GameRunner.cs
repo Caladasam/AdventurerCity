@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using AdventurerCity.Simulation;
+using AdventurerCity.Simulation.Combat;
 using UnityEngine;
 
 namespace AdventurerCity.View
@@ -15,13 +16,17 @@ namespace AdventurerCity.View
         ContentLibrary content;
         CityRenderer cityRenderer;
         BuildTool tool;
+        DungeonView dungeonView;
         float accumulator;
+        float combatAccumulator;
         int lastAutosaveDay;
 
         public World Sim { get; private set; }
         public int SpeedIndex { get; private set; }
         public IReadOnlyList<int> Speeds => speeds;
         public List<SimEvent> Log { get; } = new List<SimEvent>();
+        public bool IsWatchingDungeon => dungeonView != null && dungeonView.IsWatching;
+        public int WatchedExpeditionId => dungeonView != null ? dungeonView.WatchedExpeditionId : 0;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void Bootstrap()
@@ -34,6 +39,7 @@ namespace AdventurerCity.View
         {
             content = ContentLibrary.CreateDefault();
             Sim = SaveSystem.TryLoad(content) ?? World.CreateNew(content);
+            Sim.RealtimeCombat = true;
             lastAutosaveDay = Sim.Day;
 
             CreateLight();
@@ -46,6 +52,8 @@ namespace AdventurerCity.View
             tool = gameObject.AddComponent<BuildTool>();
             tool.Init(this, rig, hud);
             hud.Init(this, tool);
+            dungeonView = gameObject.AddComponent<DungeonView>();
+            dungeonView.Init(this, rig);
         }
 
         void Update()
@@ -59,6 +67,11 @@ namespace AdventurerCity.View
                 Sim.Step();
                 steps++;
             }
+
+            combatAccumulator = Mathf.Min(combatAccumulator + Time.deltaTime * speeds[SpeedIndex], 1f);
+            var combatSteps = (int)(combatAccumulator / CombatData.Tick);
+            combatAccumulator -= combatSteps * CombatData.Tick;
+            Sim.AdvanceCombat(combatSteps);
 
             Sim.DrainEvents(Log);
             if (Log.Count > MaxLogEntries) Log.RemoveRange(0, Log.Count - MaxLogEntries);
@@ -76,6 +89,12 @@ namespace AdventurerCity.View
         void LateUpdate() => Sim.FlushCommands();
 
         void OnApplicationQuit() => SaveSystem.Save(Sim);
+
+        public void WatchExpedition(int expeditionId)
+        {
+            tool.Cancel();
+            dungeonView.Watch(expeditionId);
+        }
 
         public void SetSpeed(int index) => SpeedIndex = Mathf.Clamp(index, 0, speeds.Length - 1);
 
@@ -102,7 +121,10 @@ namespace AdventurerCity.View
         void Replace(World world)
         {
             Sim = world;
+            Sim.RealtimeCombat = true;
             accumulator = 0f;
+            combatAccumulator = 0f;
+            if (dungeonView.IsWatching) dungeonView.StopWatching();
             lastAutosaveDay = world.Day;
             tool.Cancel();
             tool.SelectedId = 0;

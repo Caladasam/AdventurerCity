@@ -82,6 +82,11 @@ namespace AdventurerCity.View
 
             var world = runner.Sim;
             DrawTopBar(world);
+            if (runner.IsWatchingDungeon)
+            {
+                DrawLog();
+                return;
+            }
             DrawToolbar(world);
             DrawLog();
             DrawSelection(world);
@@ -360,7 +365,7 @@ namespace AdventurerCity.View
             });
 
             var height = 150f + heroes.Count * 24f;
-            foreach (var active in expeditions) height += 24f + ExpeditionDetailsHeight(active, compact);
+            foreach (var active in expeditions) height += 30f + ExpeditionDetailsHeight(active, compact);
             var rect = Panel(new Rect(10f, TopBarHeight + 8f, width, height));
             GUILayout.BeginArea(new Rect(rect.x + 10f, rect.y + 6f, rect.width - 20f, rect.height - 10f));
 
@@ -423,7 +428,11 @@ namespace AdventurerCity.View
 
             for (var i = 0; i < expeditions.Count; i++)
             {
+                GUILayout.BeginHorizontal();
                 GUILayout.Label($"<b>Отряд {i + 1} в шахте</b>", richLabel);
+                GUILayout.FlexibleSpace();
+                if (GUILayout.Button("Смотреть бой", GUILayout.Width(110f))) runner.WatchExpedition(expeditions[i].Record.Id);
+                GUILayout.EndHorizontal();
                 DrawExpeditionDetails(expeditions[i], compact);
             }
 
@@ -517,7 +526,7 @@ namespace AdventurerCity.View
 
             const float width = 380f;
             var height = 40f;
-            foreach (var active in expeditions) height += 22f + ExpeditionDetailsHeight(active, true);
+            foreach (var active in expeditions) height += 28f + ExpeditionDetailsHeight(active, true);
             var rect = Panel(new Rect(10f, Screen.height - ToolbarHeight - 30f - height, width, height));
             GUILayout.BeginArea(new Rect(rect.x + 10f, rect.y + 6f, rect.width - 20f, rect.height - 10f));
             GUILayout.BeginHorizontal();
@@ -528,7 +537,11 @@ namespace AdventurerCity.View
             GUILayout.EndHorizontal();
             for (var i = 0; i < expeditions.Count; i++)
             {
-                if (expeditions.Count > 1) GUILayout.Label($"<b>Отряд {i + 1}</b>", richLabel);
+                GUILayout.BeginHorizontal();
+                GUILayout.Label(expeditions.Count > 1 ? $"<b>Отряд {i + 1}</b>" : "", richLabel);
+                GUILayout.FlexibleSpace();
+                if (GUILayout.Button("Смотреть бой", GUILayout.Width(110f))) runner.WatchExpedition(expeditions[i].Record.Id);
+                GUILayout.EndHorizontal();
                 DrawExpeditionDetails(expeditions[i], true);
             }
             GUILayout.EndArea();
@@ -582,7 +595,7 @@ namespace AdventurerCity.View
             GUI.color = previous;
         }
 
-        static string PhaseText(Expedition run)
+        public static string PhaseText(Expedition run)
         {
             switch (run.Phase)
             {
