@@ -4,17 +4,36 @@ using AdventurerCity.Simulation.Combat;
 
 namespace AdventurerCity.Simulation
 {
+    public sealed class ActiveRaid
+    {
+        public RaidRecord Record;
+        public Battle Battle;
+        public List<Combatant> Defenders;
+        public string Title;
+        public readonly List<string> Log = new List<string>();
+    }
+
     public sealed partial class World
     {
         static readonly ResourceType[] Plunder = { ResourceType.Gold, ResourceType.Bread, ResourceType.Grain, ResourceType.Planks };
 
+        readonly List<ActiveRaid> activeRaids = new List<ActiveRaid>();
+
         public IReadOnlyList<RaidRecord> Raids => State.Raids;
-        public List<string> LastRaidLog { get; } = new List<string>();
+        public IReadOnlyList<ActiveRaid> ActiveRaids => activeRaids;
 
         public RaidRecord RaidFrom(int siteId)
         {
             foreach (var raid in State.Raids)
                 if (raid.SiteId == siteId)
+                    return raid;
+            return null;
+        }
+
+        public ActiveRaid ActiveRaidFrom(int siteId)
+        {
+            foreach (var raid in activeRaids)
+                if (raid.Record.SiteId == siteId)
                     return raid;
             return null;
         }
@@ -25,7 +44,8 @@ namespace AdventurerCity.Simulation
             guards = 0;
             foreach (var citizen in State.Citizens)
             {
-                if (citizen.IsHero && !citizen.OnExpedition) heroes++;
+                if (citizen.OnExpedition) continue;
+                if (citizen.IsHero) heroes++;
                 else if (IsGuard(citizen)) guards++;
             }
         }
@@ -36,6 +56,9 @@ namespace AdventurerCity.Simulation
             var work = GetBuilding(citizen.WorkId);
             return work != null && work.Kind == BuildingKind.Watchtower && work.IsComplete;
         }
+
+        static string RaidTitle(SiteDef def) =>
+            def.Kind == SiteKind.Dungeon ? $"Монстры из «{def.Name}»" : $"Набег: «{def.Name}»";
 
         void StartRaid(SiteState site, SiteDef def)
         {
@@ -54,18 +77,22 @@ namespace AdventurerCity.Simulation
             for (var i = raids.Count - 1; i >= 0; i--)
             {
                 var raid = raids[i];
+                if (raid.Fighting) continue;
                 raid.TicksLeft--;
                 if (raid.TicksLeft > 0) continue;
-                raids.RemoveAt(i);
-                ResolveRaid(raid);
+                BeginDefense(raid, i);
             }
         }
 
-        void ResolveRaid(RaidRecord raid)
+        void BeginDefense(RaidRecord raid, int index)
         {
             var def = Region.Get(raid.SiteId);
             var site = FindSite(raid.SiteId);
-            if (def == null || site == null) return;
+            if (def == null || site == null)
+            {
+                State.Raids.RemoveAt(index);
+                return;
+            }
 
             if (!site.Discovered)
             {
@@ -73,55 +100,96 @@ namespace AdventurerCity.Simulation
                 Report($"По следам набега найдено: «{def.Name}»");
             }
 
-            var scale = 1f + Region.RaidScalePerRaid * site.Raids;
+            raid.Scale = 1f + Region.RaidScalePerRaid * site.Raids;
             site.Raids++;
-            var foes = new List<Combatant>();
-            foreach (var kind in def.RaidEnemies) foes.Add(Combatant.FromEnemy(kind, scale));
-
-            var defenders = new List<Combatant>();
-            var defenderIds = new List<int>();
-            foreach (var citizen in State.Citizens)
+            raid.DefenderIds = new List<int>();
+            for (var i = 0; i < State.Citizens.Count; i++)
             {
-                if (citizen.IsHero && !citizen.OnExpedition)
-                {
-                    defenders.Add(HeroCombatant(citizen));
-                    defenderIds.Add(citizen.Id);
-                }
-                else if (IsGuard(citizen))
-                {
-                    defenders.Add(Combatant.FromHero("Стражник " + CitizenInfo.FullName(citizen), HeroClass.Barbarian, 1));
-                    defenderIds.Add(citizen.Id);
-                }
+                var citizen = State.Citizens[i];
+                if (citizen.OnExpedition || !citizen.IsHero && !IsGuard(citizen)) continue;
+                raid.DefenderIds.Add(citizen.Id);
+                citizen.OnExpedition = true;
+                State.Citizens[i] = citizen;
             }
 
-            LastRaidLog.Clear();
-            var title = def.Kind == SiteKind.Dungeon ? $"Монстры из «{def.Name}»" : $"Набег: «{def.Name}»";
-            if (defenders.Count == 0)
+            var title = RaidTitle(def);
+            if (raid.DefenderIds.Count == 0)
             {
+                State.Raids.RemoveAt(index);
                 Report($"{title} — город некому защищать");
                 Pillage();
                 return;
             }
 
-            var battle = new Battle(defenders, foes, new Rng(Random(1000000000)), LastRaidLog);
-            var outcome = BattleOutcome.Ongoing;
-            while (outcome == BattleOutcome.Ongoing) outcome = battle.Step();
-
-            if (outcome == BattleOutcome.Won) Report($"{title} — отбит! Защитников: {defenders.Count}");
-            else Report($"{title} — защитники не выстояли");
-            ApplyDefenseResults(defenders, defenderIds, outcome == BattleOutcome.Won ? battle.XpPool : 0);
-            if (outcome != BattleOutcome.Won) Pillage();
+            raid.Fighting = true;
+            raid.Seed = Random(1000000000);
+            activeRaids.Add(LaunchRaid(raid));
+            Report($"{title}: враги у ворот, защитников {raid.DefenderIds.Count}");
         }
 
-        void ApplyDefenseResults(List<Combatant> defenders, List<int> ids, int xpPool)
+        ActiveRaid LaunchRaid(RaidRecord raid)
         {
+            var def = Region.Get(raid.SiteId);
+            var defenders = new List<Combatant>();
+            foreach (var id in raid.DefenderIds)
+            {
+                var index = CitizenIndex(id);
+                if (index < 0) continue;
+                var citizen = State.Citizens[index];
+                defenders.Add(citizen.IsHero
+                    ? HeroCombatant(citizen)
+                    : Combatant.FromHero("Стражник " + CitizenInfo.FullName(citizen), HeroClass.Barbarian, 1));
+            }
+            var foes = new List<Combatant>();
+            foreach (var kind in def.RaidEnemies) foes.Add(Combatant.FromEnemy(kind, raid.Scale));
+            ApplyBonds(defenders, raid.DefenderIds);
+            var active = new ActiveRaid { Record = raid, Defenders = defenders, Title = RaidTitle(def) };
+            active.Battle = new Battle(defenders, foes, new Rng(raid.Seed), active.Log);
+            return active;
+        }
+
+        void RestoreRaids()
+        {
+            foreach (var raid in State.Raids)
+            {
+                if (!raid.Fighting) continue;
+                var active = LaunchRaid(raid);
+                var steps = (int)Math.Round(raid.Elapsed / CombatData.Tick);
+                for (var i = 0; i < steps && active.Battle.Outcome == BattleOutcome.Ongoing; i++) active.Battle.Step();
+                activeRaids.Add(active);
+            }
+        }
+
+        void StepRaids(int steps)
+        {
+            for (var r = activeRaids.Count - 1; r >= 0; r--)
+            {
+                var active = activeRaids[r];
+                var outcome = active.Battle.Outcome;
+                for (var i = 0; i < steps && outcome == BattleOutcome.Ongoing; i++) outcome = active.Battle.Step();
+                active.Record.Elapsed = active.Battle.Time;
+                if (outcome == BattleOutcome.Ongoing) continue;
+
+                activeRaids.RemoveAt(r);
+                State.Raids.Remove(active.Record);
+                if (outcome == BattleOutcome.Won) Report($"{active.Title} — отбит! Защитников: {active.Defenders.Count}");
+                else Report($"{active.Title} — защитники не выстояли");
+                ApplyDefenseResults(active.Defenders, active.Record.DefenderIds, outcome == BattleOutcome.Won ? active.Battle.XpPool : 0,
+                    outcome == BattleOutcome.Won, active.Title);
+                if (outcome != BattleOutcome.Won) Pillage();
+            }
+        }
+
+        void ApplyDefenseResults(List<Combatant> defenders, List<int> ids, int xpPool, bool won, string title)
+        {
+            var standing = new List<int>();
             var survivors = 0;
             foreach (var fighter in defenders)
                 if (!fighter.Dead)
                     survivors++;
 
             var citizens = State.Citizens;
-            for (var i = 0; i < defenders.Count; i++)
+            for (var i = 0; i < defenders.Count && i < ids.Count; i++)
             {
                 var index = CitizenIndex(ids[i]);
                 if (index < 0) continue;
@@ -130,15 +198,22 @@ namespace AdventurerCity.Simulation
                 if (fighter.Dead)
                 {
                     Report($"{CitizenInfo.FullName(citizen)} погиб(ла), защищая город");
+                    if (citizen.IsHero) Bury(citizen, "пал(а), защищая город");
                     citizens.RemoveAt(index);
                     workforceDirty = true;
                     continue;
                 }
-                if (!citizen.IsHero) continue;
-                if (fighter.Injured && citizen.InjuryDays == 0) citizen.InjuryDays = SimConstants.InjuryDays;
-                if (survivors > 0) GrantHeroXp(ref citizen, xpPool / survivors);
+                citizen.OnExpedition = false;
+                if (citizen.IsHero)
+                {
+                    standing.Add(citizen.Id);
+                    if (fighter.Injured && citizen.InjuryDays == 0) citizen.InjuryDays = SimConstants.InjuryDays;
+                    if (survivors > 0) GrantHeroXp(ref citizen, (int)(xpPool / survivors * TraitXp(citizen)));
+                    AddChronicle(citizen.Id, won ? $"отбил(а) набег — {title}" : $"не удержал(а) ворота — {title}");
+                }
                 citizens[index] = citizen;
             }
+            ShareExperience(standing);
         }
 
         void Pillage()

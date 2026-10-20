@@ -15,6 +15,7 @@ namespace AdventurerCity.View
 
         ContentLibrary content;
         CityRenderer cityRenderer;
+        CitizensView citizensView;
         BuildTool tool;
         DungeonView dungeonView;
         float accumulator;
@@ -50,12 +51,15 @@ namespace AdventurerCity.View
             Rig = rig;
             cityRenderer = gameObject.AddComponent<CityRenderer>();
             cityRenderer.Init(this);
+            citizensView = gameObject.AddComponent<CitizensView>();
+            citizensView.Init(this);
             var hud = gameObject.AddComponent<Hud>();
             tool = gameObject.AddComponent<BuildTool>();
             tool.Init(this, rig, hud);
             hud.Init(this, tool);
             dungeonView = gameObject.AddComponent<DungeonView>();
             dungeonView.Init(this, rig);
+            gameObject.AddComponent<GameAudio>().Init();
         }
 
         void Update()
@@ -75,8 +79,11 @@ namespace AdventurerCity.View
             combatAccumulator -= combatSteps * CombatData.Tick;
             Sim.AdvanceCombat(combatSteps);
 
+            var before = Log.Count;
             Sim.DrainEvents(Log);
+            for (var i = before; i < Log.Count; i++) PlayEventSound(Log[i].Text);
             if (Log.Count > MaxLogEntries) Log.RemoveRange(0, Log.Count - MaxLogEntries);
+            GameAudio.Battle = IsWatchingDungeon || Sim.ActiveRaids.Count > 0;
 
             if (Sim.Day != lastAutosaveDay)
             {
@@ -90,7 +97,22 @@ namespace AdventurerCity.View
 
         void LateUpdate() => Sim.FlushCommands();
 
+        static void PlayEventSound(string text)
+        {
+            if (text.Contains("враги у ворот") || text.StartsWith("Набег со стороны") || text.StartsWith("Вспышка в")) GameAudio.Play(Sfx.Alarm);
+            else if (text.Contains("зачищено") || text.Contains("отбит")) GameAudio.Play(Sfx.Fanfare);
+            else if (text.Contains("достигает")) GameAudio.Play(Sfx.LevelUp);
+            else if (text.Contains("погиб") || text.Contains("не выстояли") || text.Contains("разграблен")) GameAudio.Play(Sfx.Sad);
+            else if (text.StartsWith("Построено")) GameAudio.Play(Sfx.Built, 0.7f);
+        }
+
         void OnApplicationQuit() => SaveSystem.Save(Sim);
+
+        public void WatchRaid(int siteId)
+        {
+            tool.Cancel();
+            dungeonView.WatchRaid(siteId);
+        }
 
         public void WatchExpedition(int expeditionId)
         {
@@ -131,6 +153,7 @@ namespace AdventurerCity.View
             tool.Cancel();
             tool.SelectedId = 0;
             cityRenderer.ResetView();
+            citizensView.ResetView();
         }
     }
 }

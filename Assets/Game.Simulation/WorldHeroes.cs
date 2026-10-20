@@ -126,11 +126,14 @@ namespace AdventurerCity.Simulation
             hero.SlotB = Ability.None;
             hero.TrainingClass = 0;
             hero.WorkId = 0;
+            hero.Trait3 = HeroTrait.None;
+            AssignTraits(ref hero);
             citizens[candidate] = hero;
             Stock.Take(ResourceType.Gold, SimConstants.HeroHireGold);
             Stock.Take(ResourceType.Planks, SimConstants.HeroHirePlanks);
             workforceDirty = true;
-            Report($"{CitizenInfo.FullName(hero)} — новый герой гильдии: {CombatData.Get(heroClass).Name}");
+            Report($"{CitizenInfo.FullName(hero)} — новый герой гильдии: {CombatData.Get(heroClass).Name} ({Traits.Get(hero.Trait1).Name}, {Traits.Get(hero.Trait2).Name})");
+            AddChronicle(hero.Id, $"принят(а) в гильдию: {CombatData.Get(heroClass).Name}");
             return true;
         }
 
@@ -169,6 +172,7 @@ namespace AdventurerCity.Simulation
                 if (index < 0) continue;
                 party.Add(HeroCombatant(State.Citizens[index]));
             }
+            ApplyBonds(party, record.HeroIds);
 
             var active = new ActiveExpedition { Record = record };
             active.Run = new Expedition(party, record.Seed, Dungeons.Get(record.DungeonId), record.Heroic, active.Log);
@@ -226,6 +230,7 @@ namespace AdventurerCity.Simulation
 
         void RunCombatSteps(int steps)
         {
+            StepRaids(steps);
             for (var e = expeditions.Count - 1; e >= 0; e--)
             {
                 var active = expeditions[e];
@@ -247,22 +252,27 @@ namespace AdventurerCity.Simulation
                 hero.HeroXp -= XpToNextLevel(hero.HeroLevel);
                 hero.HeroLevel++;
                 Report($"{CitizenInfo.FullName(hero)} достигает {hero.HeroLevel}-го уровня");
+                AddChronicle(hero.Id, $"достиг(ла) {hero.HeroLevel}-го уровня");
             }
         }
 
         void CompleteExpedition(ActiveExpedition active)
         {
             var run = active.Run;
-            Stock.Add(run.LootType, run.Loot);
-            Stock.Add(ResourceType.Gold, run.Gold);
+            var greed = LootBonus(active.Record.HeroIds);
+            var extraLoot = (int)Math.Round(run.Loot * greed);
+            var extraGold = (int)Math.Round(run.Gold * greed);
+            Stock.Add(run.LootType, run.Loot + extraLoot);
+            Stock.Add(ResourceType.Gold, run.Gold + extraGold);
 
-            var loot = run.LootSummary;
+            var loot = run.LootSummary + (extraLoot + extraGold > 0 ? $" (+{greed * 100f:0}% от жадных)" : "");
             if (run.Cleared) Report($"«{run.Dungeon.Name}» зачищено! Добыча: {loot}");
             else if (run.Wiped) Report($"Отряд погиб: «{run.Dungeon.Name}», добыча потеряна");
             else Report($"Отряд отступил: «{run.Dungeon.Name}». Добыча: {loot}");
             ApplyExpeditionToSite(run);
 
             var citizens = State.Citizens;
+            var survivors = new List<int>();
             for (var i = 0; i < active.Record.HeroIds.Count && i < run.Party.Count; i++)
             {
                 var index = CitizenIndex(active.Record.HeroIds[i]);
@@ -273,21 +283,27 @@ namespace AdventurerCity.Simulation
                 if (fighter.Dead)
                 {
                     Report($"{CitizenInfo.FullName(hero)} погиб(ла): «{run.Dungeon.Name}»");
+                    Bury(hero, $"пал(а) в «{run.Dungeon.Name}»");
                     citizens.RemoveAt(index);
                     workforceDirty = true;
                     continue;
                 }
 
+                survivors.Add(hero.Id);
                 hero.OnExpedition = false;
                 if (fighter.Injured && hero.InjuryDays == 0)
                 {
                     hero.InjuryDays = SimConstants.InjuryDays;
                     Report($"{CitizenInfo.FullName(hero)} ранен(а) и {SimConstants.InjuryDays} дня восстанавливается");
+                    AddChronicle(hero.Id, $"ранен(а) в «{run.Dungeon.Name}»");
                 }
+                if (run.Cleared) AddChronicle(hero.Id, $"зачистил(а) «{run.Dungeon.Name}»{(run.Heroic ? " (героич.)" : "")}");
+                else if (run.BossReached) AddChronicle(hero.Id, $"дошёл(ла) до босса в «{run.Dungeon.Name}» и отступил(а)");
 
-                GrantHeroXp(ref hero, fighter.XpGained);
+                GrantHeroXp(ref hero, (int)(fighter.XpGained * TraitXp(hero)));
                 citizens[index] = hero;
             }
+            ShareExperience(survivors);
         }
 
         void DailyHeroes()
@@ -299,12 +315,13 @@ namespace AdventurerCity.Simulation
             {
                 var hero = citizens[i];
                 if (!hero.IsHero) continue;
-                if (Stock.Take(ResourceType.Gold, SimConstants.HeroWageGold) < SimConstants.HeroWageGold) unpaid = true;
+                var wage = SimConstants.HeroWageGold + TraitWage(hero);
+                if (Stock.Take(ResourceType.Gold, wage) < wage) unpaid = true;
                 if (!hero.OnExpedition)
                 {
                     hero.Hungry = Stock.Take(ResourceType.Bread, SimConstants.HeroBreadPerDay) < SimConstants.HeroBreadPerDay;
                     if (hero.Hungry) hungry++;
-                    if (hero.InjuryDays > 0) hero.InjuryDays--;
+                    if (hero.InjuryDays > 0) hero.InjuryDays = Math.Max(0, hero.InjuryDays - DailyRecovery(hero));
                 }
                 citizens[i] = hero;
             }

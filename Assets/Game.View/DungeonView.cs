@@ -66,7 +66,8 @@ namespace AdventurerCity.View
         GUIStyle panelStyle;
 
         public int WatchedExpeditionId { get; private set; }
-        public bool IsWatching => WatchedExpeditionId != 0;
+        public int WatchedRaidSite { get; private set; }
+        public bool IsWatching => WatchedExpeditionId != 0 || WatchedRaidSite != 0;
 
         public void Init(GameRunner owner, CameraRig rig)
         {
@@ -122,6 +123,16 @@ namespace AdventurerCity.View
         public void Watch(int expeditionId)
         {
             WatchedExpeditionId = expeditionId;
+            WatchedRaidSite = 0;
+            Clear();
+            arenaCamera.enabled = true;
+            cityRig.Camera.enabled = false;
+        }
+
+        public void WatchRaid(int siteId)
+        {
+            WatchedRaidSite = siteId;
+            WatchedExpeditionId = 0;
             Clear();
             arenaCamera.enabled = true;
             cityRig.Camera.enabled = false;
@@ -130,6 +141,7 @@ namespace AdventurerCity.View
         public void StopWatching()
         {
             WatchedExpeditionId = 0;
+            WatchedRaidSite = 0;
             Clear();
             arenaCamera.enabled = false;
             cityRig.Camera.enabled = true;
@@ -137,11 +149,14 @@ namespace AdventurerCity.View
 
         ActiveExpedition Watched()
         {
+            if (WatchedExpeditionId == 0) return null;
             foreach (var active in runner.Sim.Expeditions)
                 if (active.Record.Id == WatchedExpeditionId)
                     return active;
             return null;
         }
+
+        ActiveRaid WatchedRaid() => WatchedRaidSite == 0 ? null : runner.Sim.ActiveRaidFrom(WatchedRaidSite);
 
         void Clear()
         {
@@ -162,23 +177,26 @@ namespace AdventurerCity.View
             }
 
             var active = Watched();
-            if (active == null)
+            var raid = WatchedRaid();
+            if (active == null && raid == null)
             {
-                runner.Log.Add(new SimEvent(runner.Sim.State.Tick, "Отряд вернулся из похода"));
+                if (WatchedExpeditionId != 0) runner.Log.Add(new SimEvent(runner.Sim.State.Tick, "Отряд вернулся из похода"));
                 StopWatching();
                 return;
             }
 
-            var run = active.Run;
-            if (floorDungeonId != run.Dungeon.Id)
+            var run = active?.Run;
+            var battle = run != null ? run.Battle : raid.Battle;
+            var floorKey = run != null ? run.Dungeon.Id : -1;
+            if (floorDungeonId != floorKey)
             {
-                floorDungeonId = run.Dungeon.Id;
-                var tint = FloorColor(run.Dungeon.Id) * 3.2f;
+                floorDungeonId = floorKey;
+                var tint = (run != null ? FloorColor(run.Dungeon.Id) : new Color(0.2f, 0.25f, 0.15f)) * 3.2f;
                 tint.a = 1f;
                 floor.color = tint;
                 wall.color = tint * 0.8f;
             }
-            if (run.Battle != shownBattle)
+            if (battle != shownBattle)
             {
                 foreach (var actor in actors.Values)
                     if (!actor.Unit.IsHero)
@@ -188,11 +206,12 @@ namespace AdventurerCity.View
                     if (!unit.IsHero)
                         stale.Add(unit);
                 foreach (var unit in stale) actors.Remove(unit);
-                shownBattle = run.Battle;
+                shownBattle = battle;
                 eventCursor = 0;
             }
 
-            SyncActors(run);
+            var bossRoom = run != null && run.RoomIndex < run.Rooms.Count && run.Rooms[run.RoomIndex].Kind == RoomKind.Boss;
+            SyncActors(run != null ? run.Party : raid.Battle.Heroes, bossRoom);
             if (shownBattle != null) ConsumeEvents(shownBattle);
             Animate();
             AnimateLights();
@@ -201,13 +220,13 @@ namespace AdventurerCity.View
 
         static Vector3 ArenaPoint(float x, float depth) => new Vector3(x, depth * DepthScale, 0f);
 
-        void SyncActors(Expedition run)
+        void SyncActors(IReadOnlyList<Combatant> party, bool bossRoom)
         {
             int tanks = 0, backline = 0, melee = 0, backCount = 0;
-            foreach (var hero in run.Party)
+            foreach (var hero in party)
                 if (IsBackline(hero.Role))
                     backCount++;
-            foreach (var hero in run.Party)
+            foreach (var hero in party)
             {
                 Vector3 home;
                 if (hero.Role == CombatRole.Tank)
@@ -229,7 +248,6 @@ namespace AdventurerCity.View
 
             if (shownBattle == null) return;
             var enemies = shownBattle.Enemies;
-            var bossRoom = run.RoomIndex < run.Rooms.Count && run.Rooms[run.RoomIndex].Kind == RoomKind.Boss;
             for (var i = 0; i < enemies.Count; i++)
             {
                 if (actors.ContainsKey(enemies[i])) continue;
@@ -285,6 +303,7 @@ namespace AdventurerCity.View
                 if (e.Kind == BattleEventKind.Enrage)
                 {
                     shakeTime = 0.3f;
+                    GameAudio.Play(Sfx.Boom, 0.6f);
                     Flash(new Color(1f, 0.25f, 0.2f), 2.5f);
                     foreach (var actor in actors.Values)
                         if (!actor.Unit.IsHero && actor.Unit.Active)
@@ -305,6 +324,7 @@ namespace AdventurerCity.View
                         Flash(target, new Color(1f, 0.35f, 0.3f));
                         Emit(target, e.Target.IsHero ? new Color(1f, 0.35f, 0.3f) : new Color(1f, 0.92f, 0.7f), e.Crit ? 14 : 5);
                         if (e.Crit) hitStop = Mathf.Max(hitStop, 0.07f);
+                        GameAudio.Play(e.Crit ? Sfx.Crit : Sfx.Hit, e.Target.IsHero ? 0.6f : 0.8f);
                         AddText(target, e.Crit ? $"{Mathf.CeilToInt(e.Amount)}!" : $"-{Mathf.CeilToInt(e.Amount)}",
                             e.Crit ? new Color(1f, 0.85f, 0.2f) : e.Target.IsHero ? new Color(1f, 0.45f, 0.4f) : Color.white, e.Crit ? 20 : 15);
                         break;
@@ -314,14 +334,17 @@ namespace AdventurerCity.View
                     case BattleEventKind.Heal:
                         Flash(target, new Color(0.5f, 1f, 0.5f));
                         Emit(target, new Color(0.45f, 1f, 0.5f), 6);
+                        GameAudio.Play(Sfx.Heal, 0.5f);
                         AddText(target, $"+{Mathf.CeilToInt(e.Amount)}", new Color(0.45f, 1f, 0.45f), 15);
                         break;
                     case BattleEventKind.CastStart:
                         if (source != null) source.CastTotal = Mathf.Max(0.1f, e.Amount);
+                        GameAudio.Play(Sfx.Cast, 0.5f);
                         break;
                     case BattleEventKind.Interrupt:
                         Emit(target, new Color(0.6f, 0.8f, 1f), 10);
                         AddText(target, "Прервано!", new Color(0.6f, 0.8f, 1f), 17);
+                        GameAudio.Play(Sfx.Click, 1f);
                         break;
                     case BattleEventKind.Ability:
                         if (Classes.Get(e.Ability).Cast <= 0f && e.Ability != Ability.Revive)
@@ -333,6 +356,7 @@ namespace AdventurerCity.View
                     case BattleEventKind.Revived:
                         Emit(target, new Color(1f, 0.95f, 0.6f), 18);
                         AddText(target, "Поднят!", new Color(1f, 0.95f, 0.6f), 17);
+                        GameAudio.Play(Sfx.LevelUp, 0.6f);
                         break;
                     case BattleEventKind.Downed:
                         AddText(target, "Упал!", new Color(1f, 0.4f, 0.3f), 18);
@@ -340,9 +364,11 @@ namespace AdventurerCity.View
                     case BattleEventKind.Killed:
                         Emit(target, target != null ? target.Tint : Color.white, 20);
                         hitStop = Mathf.Max(hitStop, 0.05f);
+                        GameAudio.Play(Sfx.Death, 0.6f);
                         break;
                     case BattleEventKind.Died:
                         AddText(source, "Погиб", new Color(1f, 0.2f, 0.2f), 20);
+                        GameAudio.Play(Sfx.Sad, 0.8f);
                         break;
                     case BattleEventKind.Summon:
                         Emit(source, new Color(1f, 0.7f, 0.3f), 16);
@@ -351,6 +377,7 @@ namespace AdventurerCity.View
                     case BattleEventKind.EnemyAoe:
                         shakeTime = 0.45f;
                         hitStop = Mathf.Max(hitStop, 0.1f);
+                        GameAudio.Play(Sfx.Boom);
                         Flash(new Color(1f, 0.55f, 0.25f), 3f);
                         AddText(source, CombatData.Get(e.Source.Enemy).AoeName.ToUpper() + "!", new Color(1f, 0.6f, 0.2f), 24);
                         foreach (var actor in actors.Values)
@@ -490,7 +517,8 @@ namespace AdventurerCity.View
         {
             if (!IsWatching) return;
             var active = Watched();
-            if (active == null) return;
+            var raid = WatchedRaid();
+            if (active == null && raid == null) return;
             if (label == null)
             {
                 label = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontSize = 12, richText = true };
@@ -537,16 +565,21 @@ namespace AdventurerCity.View
                 GUI.Label(new Rect(point.x - 80f, Screen.height - point.y - 12f, 160f, 24f), text.Text, style);
             }
 
-            var run = active.Run;
+            var run = active?.Run;
             var header = new Rect(Screen.width * 0.5f - 260f, 40f, 520f, 64f);
             GUI.Box(header, GUIContent.none, panelStyle);
-            GUI.Label(new Rect(header.x, header.y + 6f, header.width, 22f), $"<b>{run.Dungeon.Name}{(run.Heroic ? " (героич.)" : "")}</b> · {Hud.PhaseText(run)}", label);
-            GUI.Label(new Rect(header.x, header.y + 26f, header.width, 18f),
-                $"<color=#BBBBBB>{run.Elapsed:0} с в походе · добыча: {run.LootSummary}</color>", label);
+            var title = run != null
+                ? $"<b>{run.Dungeon.Name}{(run.Heroic ? " (героич.)" : "")}</b> · {Hud.PhaseText(run)}"
+                : $"<b>Оборона города</b> · {raid.Title}";
+            var subtitle = run != null
+                ? $"{run.Elapsed:0} с в походе · добыча: {run.LootSummary}"
+                : $"{raid.Battle.Time:0} с боя · защитников {raid.Battle.Heroes.Count}, врагов {raid.Battle.Enemies.Count}";
+            GUI.Label(new Rect(header.x, header.y + 6f, header.width, 22f), title, label);
+            GUI.Label(new Rect(header.x, header.y + 26f, header.width, 18f), $"<color=#BBBBBB>{subtitle}</color>", label);
             if (GUI.Button(new Rect(header.x + header.width * 0.5f - 90f, header.y + 44f, 180f, 18f), "Вернуться в город (Esc)"))
                 StopWatching();
 
-            if (run.Battle == null)
+            if (run != null && run.Battle == null)
                 GUI.Label(new Rect(0f, Screen.height * 0.5f - 60f, Screen.width, 30f),
                     $"<size=20><color=#CCCCCC>{(run.Phase == ExpeditionPhase.Rest ? "Привал" : "В пути")}</color></size>", label);
         }

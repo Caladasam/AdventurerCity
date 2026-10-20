@@ -159,6 +159,18 @@ namespace AdventurerCity.Simulation
         public override bool Execute(World world, out string error) => world.SetAbilitySlot(heroId, slot, ability, out error);
     }
 
+    public sealed class ResurrectCommand : Command
+    {
+        readonly int heroId;
+
+        public ResurrectCommand(int heroId)
+        {
+            this.heroId = heroId;
+        }
+
+        public override bool Execute(World world, out string error) => world.Resurrect(heroId, out error);
+    }
+
     public sealed class SendExpeditionCommand : Command
     {
         readonly List<int> heroIds;

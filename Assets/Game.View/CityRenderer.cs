@@ -231,6 +231,7 @@ namespace AdventurerCity.View
                 case BuildingKind.Guild:
                 case BuildingKind.Storehouse:
                 case BuildingKind.Watchtower:
+                case BuildingKind.Temple:
                     view.Light = Effects.PointLight("Windows", view.Root, new Color(1f, 0.78f, 0.45f), 1.6f + rect.Width * 0.6f, 1.1f);
                     view.LightBase = 1.1f;
                     break;

@@ -27,6 +27,9 @@ namespace AdventurerCity.Simulation
         public Ability SlotB;
         public int TrainingClass;
         public int TrainingDays;
+        public HeroTrait Trait1;
+        public HeroTrait Trait2;
+        public HeroTrait Trait3;
     }
 
     public enum CitizenActivity

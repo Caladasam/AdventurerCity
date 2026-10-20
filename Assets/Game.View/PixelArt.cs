@@ -120,6 +120,7 @@ namespace AdventurerCity.View
                 case BuildingKind.House: return 6 + level * 3;
                 case BuildingKind.Watchtower: return 30;
                 case BuildingKind.Guild: return 16;
+                case BuildingKind.Temple: return 18;
                 case BuildingKind.Storehouse: return 12;
                 default: return 10;
             }
@@ -159,7 +160,7 @@ namespace AdventurerCity.View
                     return c.ToSprite(new Vector2(0f, 0f), false);
                 }
 
-                var stone = kind == BuildingKind.Forge || kind == BuildingKind.Watchtower || kind == BuildingKind.Storehouse ||
+                var stone = kind == BuildingKind.Forge || kind == BuildingKind.Watchtower || kind == BuildingKind.Storehouse || kind == BuildingKind.Temple ||
                             kind == BuildingKind.House && level >= 3;
                 var wallColor = stone ? new Color32(150, 146, 140, 255) : new Color32(214, 190, 150, 255);
                 for (var y = 0; y < wall; y++)
@@ -190,6 +191,11 @@ namespace AdventurerCity.View
 
                 switch (kind)
                 {
+                    case BuildingKind.Temple:
+                        c.Stamp(PixelSprites.Icons["cross"], w / 2 - 3, h - 8);
+                        c.Stamp(PixelSprites.Icons["window"], 4, wall - 7);
+                        c.Stamp(PixelSprites.Icons["window"], w - 9, wall - 7);
+                        break;
                     case BuildingKind.Guild:
                         c.Stamp(PixelSprites.Icons["banner"], w / 2 - 3, h - 9);
                         break;

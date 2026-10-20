@@ -110,7 +110,10 @@ namespace AdventurerCity.View
             HoverMessage = ok ? $"{def.Name}: {ResourceInfo.Format(def.Cost)}" : reason;
 
             if (ok && Input.GetMouseButtonDown(0))
+            {
                 world.Enqueue(new PlaceBuildingCommand(Kind, x, y, Rotated));
+                GameAudio.Play(Sfx.Place);
+            }
         }
 
         void UpdateRoad(World world, Vector2Int cell)
@@ -135,6 +138,7 @@ namespace AdventurerCity.View
             if (dragging && Input.GetMouseButtonUp(0))
             {
                 world.Enqueue(new PlaceRoadCommand(path));
+                GameAudio.Play(Sfx.Place, 0.6f);
                 dragging = false;
             }
         }
@@ -155,7 +159,10 @@ namespace AdventurerCity.View
             }
 
             if (Input.GetMouseButtonDown(0))
+            {
                 world.Enqueue(new DemolishCommand(cell.x, cell.y));
+                GameAudio.Play(Sfx.Place, 0.8f);
+            }
         }
 
         void BuildPath(World world, Vector2Int from, Vector2Int to)

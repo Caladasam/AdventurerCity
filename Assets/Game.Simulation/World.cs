@@ -47,8 +47,10 @@ namespace AdventurerCity.Simulation
             if (state.Scouts == null) state.Scouts = new List<ScoutRecord>();
             if (state.Raids == null) state.Raids = new List<RaidRecord>();
             if (state.Titles == null) state.Titles = new List<int>();
+            EnsurePersonalities();
             EnsureSites();
             RestoreExpeditions();
+            RestoreRaids();
         }
 
         public WorldState State { get; }

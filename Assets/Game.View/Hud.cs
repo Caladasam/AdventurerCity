@@ -28,6 +28,7 @@ namespace AdventurerCity.View
         bool mapOpen;
         int selectedDungeon = Dungeons.MineId;
         int selectedHeroId;
+        bool personalityTab;
         GUIStyle leftButton;
         bool selectedHeroic;
 
@@ -121,11 +122,11 @@ namespace AdventurerCity.View
             {
                 var type = (ResourceType)i;
                 GUILayout.Label($"{ResourceInfo.Name(type)}: {Short(world.Stock[type])} {Signed(resourceFlows[i].Net, true)}",
-                    richLabel, GUILayout.Width(104f));
+                    richLabel, GUILayout.Width(98f));
             }
             var minutes = Mathf.FloorToInt(world.DayProgress * 24f * 60f);
             GUILayout.Label($"День {world.Day}, {minutes / 60:00}:{minutes % 60:00}", GUILayout.Width(105f));
-            GUILayout.Label($"Жители: {world.Population} (раб. {world.EmployedWorkers}/{world.Adults})", GUILayout.Width(170f));
+            GUILayout.Label($"Жители: {world.Population} (раб. {world.EmployedWorkers}/{world.Adults})", GUILayout.Width(150f));
             GUILayout.FlexibleSpace();
             for (var i = 0; i < runner.Speeds.Count; i++)
             {
@@ -133,6 +134,7 @@ namespace AdventurerCity.View
                 if (GUILayout.Button($"x{runner.Speeds[i]}", GUILayout.Width(34f))) runner.SetSpeed(i);
             }
             GUI.backgroundColor = Color.white;
+            if (GUILayout.Button(GameAudio.Muted ? "Тихо" : "Звук", GUILayout.Width(50f))) GameAudio.Muted = !GameAudio.Muted;
             if (GUILayout.Button("Сохр.", GUILayout.Width(56f))) runner.Save();
             if (GUILayout.Button("Загр.", GUILayout.Width(56f))) runner.Load();
             if (GUILayout.Button("Новая", GUILayout.Width(60f))) runner.NewGame();
@@ -229,6 +231,11 @@ namespace AdventurerCity.View
             if (building.Kind == BuildingKind.Watchtower && building.IsComplete)
             {
                 DrawWatchtower(world, building);
+                return;
+            }
+            if (building.Kind == BuildingKind.Temple && building.IsComplete)
+            {
+                DrawTemple(world, building);
                 return;
             }
 
@@ -454,7 +461,7 @@ namespace AdventurerCity.View
                     inRow = 0;
                 }
                 GUI.backgroundColor = selectedDungeon == dungeon.Id ? ActiveTool : Color.white;
-                if (GUILayout.Button(dungeon.Name, GUILayout.Width(146f))) selectedDungeon = dungeon.Id;
+                if (GUILayout.Button(dungeon.Name, toolStyle, GUILayout.Width(146f), GUILayout.Height(24f))) selectedDungeon = dungeon.Id;
                 inRow++;
             }
             GUI.backgroundColor = Color.white;
@@ -539,7 +546,7 @@ namespace AdventurerCity.View
                     var tensionRect = GUILayoutUtility.GetRect(170f, 10f);
                     DrawBar(new Rect(tensionRect.x, tensionRect.y + 2f, tensionRect.width, 8f), site.Tension / Region.TensionMax, new Color(0.9f, 0.45f, 0.2f));
                     var raid = world.RaidFrom(def.Id);
-                    var state = raid != null ? $"<color=#FF8A80>{(def.Kind == SiteKind.Dungeon ? "Вспышка" : "Набег")}: в городе через {raid.TicksLeft} с</color>"
+                    var state = raid != null ? $"<color=#FF8A80>{(def.Kind == SiteKind.Dungeon ? "Вспышка" : "Набег")}: {(raid.Fighting ? "бой у ворот" : $"в городе через {raid.TicksLeft} с")}</color>"
                         : $"<color=#BBBBBB>{(def.Kind == SiteKind.Dungeon ? "Напряжение" : "Угроза набега")} {site.Tension:0}%{(world.IsHeroicUnlocked(def.DungeonId) ? " · есть героич." : "")}</color>";
                     GUILayout.Label(state, smallLabel);
                 }
@@ -561,7 +568,15 @@ namespace AdventurerCity.View
                 var site = world.FindSite(raid.SiteId);
                 var from = site != null && site.Discovered ? $"«{def.Name}»" : "неизведанные земли";
                 var kind = def.Kind == SiteKind.Dungeon ? "Вспышка" : "Набег";
-                GUI.Label(new Rect(rect.x + 10f, y, width - 20f, 20f), $"<color=#FF8A80><b>{kind}</b></color>: {from} — враги в городе через {raid.TicksLeft} с", richLabel);
+                if (raid.Fighting)
+                {
+                    GUI.Label(new Rect(rect.x + 10f, y, width - 140f, 20f), $"<color=#FF8A80><b>{kind}</b></color>: {from} — бой у ворот!", richLabel);
+                    if (GUI.Button(new Rect(rect.xMax - 124f, y, 114f, 19f), "Смотреть бой")) runner.WatchRaid(raid.SiteId);
+                }
+                else
+                {
+                    GUI.Label(new Rect(rect.x + 10f, y, width - 20f, 20f), $"<color=#FF8A80><b>{kind}</b></color>: {from} — враги в городе через {raid.TicksLeft} с", richLabel);
+                }
                 y += 20f;
             }
             GUI.Label(new Rect(rect.x + 10f, y, width - 20f, 20f),
@@ -617,7 +632,7 @@ namespace AdventurerCity.View
             var title = World.HeroTitle(hero);
 
             const float width = 440f;
-            var height = 190f + abilities.Count * 34f + (options.Count > 0 ? 60f : 0f) + 4 * 24f + 50f;
+            var height = personalityTab ? 470f : 214f + abilities.Count * 34f + (options.Count > 0 ? 60f : 0f) + 4 * 24f + 50f;
             var rect = Panel(new Rect(540f, TopBarHeight + 8f, width, height));
             GUILayout.BeginArea(new Rect(rect.x + 10f, rect.y + 6f, rect.width - 20f, rect.height - 10f));
 
@@ -626,6 +641,19 @@ namespace AdventurerCity.View
             GUILayout.FlexibleSpace();
             if (GUILayout.Button("×", GUILayout.Width(24f))) selectedHeroId = 0;
             GUILayout.EndHorizontal();
+            GUILayout.BeginHorizontal();
+            GUI.backgroundColor = personalityTab ? Color.white : ActiveTool;
+            if (GUILayout.Button("Классы и навыки", GUILayout.Width(150f))) personalityTab = false;
+            GUI.backgroundColor = personalityTab ? ActiveTool : Color.white;
+            if (GUILayout.Button("Личность и хроника", GUILayout.Width(150f))) personalityTab = true;
+            GUI.backgroundColor = Color.white;
+            GUILayout.EndHorizontal();
+            if (personalityTab)
+            {
+                DrawPersonality(world, hero);
+                GUILayout.EndArea();
+                return;
+            }
             GUILayout.Label($"Роль в бою: {Classes.RoleName(primary.Role)}. {primary.Description}", smallLabel);
             GUILayout.Label(title != null
                 ? $"Титул: <b>«{title.Name}»</b> — {title.BonusText}"
@@ -681,6 +709,64 @@ namespace AdventurerCity.View
                 names.Add($"{t.Name} ({Classes.Get(t.A).Name} + {Classes.Get(t.B).Name})");
             }
             GUILayout.Label($"<color=#AAAAAA>Открыто титулов: {known}/{Classes.Titles.Count}{(names.Count > 0 ? ": " + string.Join(", ", names) : "")}</color>", smallLabel);
+            GUILayout.EndArea();
+        }
+
+        void DrawPersonality(World world, in Citizen hero)
+        {
+            GUILayout.Label("<b>Черты</b>", richLabel);
+            foreach (var trait in Traits.Of(hero))
+            {
+                var def = Traits.Get(trait);
+                var color = def.Negative ? "#FF8A80" : trait == HeroTrait.Deathtouched ? "#CE93D8" : "#8BE28B";
+                GUILayout.Label($"<color={color}><b>{def.Name}</b></color> — {def.Description}", smallLabel);
+            }
+
+            GUILayout.Label("<b>Отношения</b> (друзья в одном отряде бьют на 5% сильнее, соперники — слабее)", richLabel);
+            var relations = world.RelationsOf(hero.Id);
+            if (relations.Count == 0) GUILayout.Label("<color=#AAAAAA>Пока ни с кем не сблизился — сходите вместе в поход</color>", smallLabel);
+            var shown = 0;
+            foreach (var (otherId, value) in relations)
+            {
+                if (shown++ == 5) break;
+                var other = world.CitizenIndex(otherId);
+                var name = other >= 0 ? CitizenInfo.FullName(world.Citizens[other]) : "павший герой";
+                var color = value >= Traits.FriendThreshold ? "#8BE28B" : value <= Traits.RivalThreshold ? "#FF8A80" : "#BBBBBB";
+                GUILayout.Label($"<color={color}>{name}: {Traits.BondName(value)} ({value:+0;-0})</color>", smallLabel);
+            }
+
+            GUILayout.Label("<b>Хроника</b>", richLabel);
+            var chronicle = world.ChronicleOf(hero.Id);
+            for (var i = chronicle.Count - 1; i >= 0 && i >= chronicle.Count - 10; i--)
+                GUILayout.Label($"<color=#BBBBBB>День {chronicle[i].Day}:</color> {chronicle[i].Text}", smallLabel);
+        }
+
+        void DrawTemple(World world, Building temple)
+        {
+            const float width = 520f;
+            var fallen = world.Fallen;
+            var rect = Panel(new Rect(10f, TopBarHeight + 8f, width, 120f + Mathf.Max(1, fallen.Count) * 46f));
+            GUILayout.BeginArea(new Rect(rect.x + 10f, rect.y + 6f, rect.width - 20f, rect.height - 10f));
+            GUILayout.Label("<b>Храм и мемориал павших</b>", richLabel);
+            GUILayout.Label($"Пока храм работает, ранения героев заживают на день быстрее. Павшего героя можно вернуть: " +
+                            $"{Traits.ResurrectGoldPerLevel} золота и {Traits.ResurrectOrePerLevel} руды за уровень. Воскрешённый теряет уровень, " +
+                            $"{Traits.ResurrectInjuryDays} дн. восстанавливается и получает черту «Видевший смерть».", smallLabel);
+            if (!temple.IsConnected) GUILayout.Label("<color=#FF8A80>Нет дороги к складу — храм не работает</color>", smallLabel);
+            if (fallen.Count == 0) GUILayout.Label("<color=#AAAAAA>Мемориал пуст. Пусть так и остаётся.</color>", smallLabel);
+            for (var i = fallen.Count - 1; i >= 0; i--)
+            {
+                var hero = fallen[i].Hero;
+                GUILayout.BeginHorizontal();
+                GUILayout.Label($"<b>{CitizenInfo.FullName(hero)}</b> — {ClassLine(hero)}, {hero.HeroLevel} ур.\n" +
+                                $"<color=#BBBBBB>День {fallen[i].Day}: {fallen[i].Cause}</color>", smallLabel, GUILayout.Width(300f));
+                var can = world.CanResurrect(hero.Id, out var reason);
+                GUI.enabled = can;
+                if (GUILayout.Button($"Воскресить\n{World.ResurrectGold(hero)} зол., {World.ResurrectOre(hero)} руды", toolStyle, GUILayout.Width(170f), GUILayout.Height(36f)))
+                    world.Enqueue(new ResurrectCommand(hero.Id));
+                GUI.enabled = true;
+                GUILayout.EndHorizontal();
+                if (!can && reason != null && !reason.StartsWith("Нужен")) GUILayout.Label($"<color=#AAAAAA>{reason}</color>", smallLabel);
+            }
             GUILayout.EndArea();
         }
 

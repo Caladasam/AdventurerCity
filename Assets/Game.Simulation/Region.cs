@@ -47,6 +47,11 @@ namespace AdventurerCity.Simulation
     {
         public int SiteId;
         public int TicksLeft;
+        public bool Fighting;
+        public int Seed;
+        public float Scale = 1f;
+        public float Elapsed;
+        public List<int> DefenderIds = new List<int>();
     }
 
     public static class Region

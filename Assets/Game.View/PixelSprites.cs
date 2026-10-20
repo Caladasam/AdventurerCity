@@ -443,6 +443,44 @@ namespace AdventurerCity.View
                 "....kNNk.kNNk...",
                 "....kkkk.kkkk..."
             },
+            ["Villager"] = new[]
+            {
+                "..kkkk..",
+                ".khhhhk.",
+                ".kszzsk.",
+                ".kssssk.",
+                "kkbbbbkk",
+                "ksbbbbsk",
+                "kkbbbbkk",
+                ".knnnnk.",
+                ".knkknk.",
+                ".kNk.kNk",
+                ".kkk.kkk"
+            },
+            ["Villagess"] = new[]
+            {
+                "..kkkk..",
+                ".khhhhkk",
+                ".kszzshk",
+                ".kssssk.",
+                "kkrrrrkk",
+                "ksrrrrsk",
+                "kkrrrrkk",
+                ".krrrrrk",
+                "krrrrrrk",
+                ".kNk.kNk",
+                ".kkk.kkk"
+            },
+            ["Child"] = new[]
+            {
+                ".kkkk.",
+                "khhhhk",
+                "kszzsk",
+                "kkyykk",
+                "ksyysk",
+                ".knnk.",
+                ".kkkk."
+            },
             ["PackLeader"] = new[]
             {
                 "..............k.k...",
@@ -494,6 +532,100 @@ namespace AdventurerCity.View
                 "....krrk.krrk...",
                 "....kRRk.kRRk...",
                 "....kkkk.kkkk..."
+            },
+            ["Villager1"] = new[]
+            {
+                "..kkkk..",
+                ".kyyyyk.",
+                ".kszzsk.",
+                ".kssssk.",
+                "kkffffkk",
+                "ksffffsk",
+                "kkffffkk",
+                ".knnnnk.",
+                ".knkknk.",
+                ".kNk.kNk",
+                ".kkk.kkk"
+            },
+            ["Villager2"] = new[]
+            {
+                "..kkkk..",
+                ".kzzzzk.",
+                ".kszzsk.",
+                ".kssssk.",
+                "kkllllkk",
+                "ksllllsk",
+                "kkllllkk",
+                ".knnnnk.",
+                ".knkknk.",
+                ".kNk.kNk",
+                ".kkk.kkk"
+            },
+            ["Villager3"] = new[]
+            {
+                "..kkkk..",
+                ".knnnnk.",
+                ".kszzsk.",
+                ".kssssk.",
+                "kkttttkk",
+                "ksttttsk",
+                "kkttttkk",
+                ".knnnnk.",
+                ".knkknk.",
+                ".kNk.kNk",
+                ".kkk.kkk"
+            },
+            ["Villagess1"] = new[]
+            {
+                "..kkkk..",
+                ".kyyyykk",
+                ".kszzsyk",
+                ".kssssk.",
+                "kkppppkk",
+                "ksppppsk",
+                "kkppppkk",
+                ".kpppppk",
+                "kppppppk",
+                ".kNk.kNk",
+                ".kkk.kkk"
+            },
+            ["Villagess2"] = new[]
+            {
+                "..kkkk..",
+                ".kzzzzkk",
+                ".kszzszk",
+                ".kssssk.",
+                "kkbbbbkk",
+                "ksbbbbsk",
+                "kkbbbbkk",
+                ".kbbbbbk",
+                "kbbbbbbk",
+                ".kNk.kNk",
+                ".kkk.kkk"
+            },
+            ["Villagess3"] = new[]
+            {
+                "..kkkk..",
+                ".knnnnkk",
+                ".kszzsnk",
+                ".kssssk.",
+                "kkooookk",
+                "ksoooosk",
+                "kkooookk",
+                ".koooook",
+                "kooooook",
+                ".kNk.kNk",
+                ".kkk.kkk"
+            },
+            ["Child1"] = new[]
+            {
+                ".kkkk.",
+                "kzzzzk",
+                "kszzsk",
+                "kkggkk",
+                "ksggsk",
+                ".knnk.",
+                ".kkkk."
             }
         };
 
@@ -583,6 +715,24 @@ namespace AdventurerCity.View
                 "yYyYy",
                 ".YyY.",
                 "..Y.."
+            },
+            ["cross"] = new[]
+            {
+                "..ky..",
+                ".kyyk.",
+                "kyyyyk",
+                ".kyyk.",
+                "..ky..",
+                "..ky..",
+                "..ky.."
+            },
+            ["window"] = new[]
+            {
+                ".kkk.",
+                "kyyyk",
+                "kyYyk",
+                "kyyyk",
+                "kkkkk"
             },
             ["scarecrow"] = new[]
             {

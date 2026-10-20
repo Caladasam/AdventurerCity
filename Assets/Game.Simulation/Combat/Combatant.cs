@@ -69,6 +69,7 @@ namespace AdventurerCity.Simulation.Combat
         public int XpGained;
         public float DamageTaken;
         public float Scale = 1f;
+        public float DownedScale = 1f;
         public float HpScale = 1f;
 
         public readonly Dictionary<Combatant, float> Threat = new Dictionary<Combatant, float>();

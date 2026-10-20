@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using AdventurerCity.Simulation.Combat;
 
@@ -32,9 +33,13 @@ namespace AdventurerCity.Simulation
 
         public static TitleDef HeroTitle(in Citizen hero) => Classes.TitleFor(hero.Class, hero.ClassMask);
 
-        public static Combatant HeroCombatant(in Citizen hero) =>
-            Combatant.FromHero(CitizenInfo.FullName(hero), hero.Class, hero.HeroLevel, hero.InjuryDays > 0, hero.WeaponTier, hero.ArmorTier,
-                HeroAbilities(hero), HeroTitle(hero));
+        public static Combatant HeroCombatant(in Citizen hero)
+        {
+            var fighter = Combatant.FromHero(CitizenInfo.FullName(hero), hero.Class, hero.HeroLevel, hero.InjuryDays > 0, hero.WeaponTier,
+                hero.ArmorTier, HeroAbilities(hero), HeroTitle(hero));
+            ApplyTraits(fighter, hero);
+            return fighter;
+        }
 
         public bool CanLearnClass(int heroId, HeroClass heroClass, out string reason)
         {
@@ -88,7 +93,7 @@ namespace AdventurerCity.Simulation
             var index = CitizenIndex(heroId);
             var hero = State.Citizens[index];
             hero.TrainingClass = (int)heroClass + 1;
-            hero.TrainingDays = Classes.TrainingDays;
+            hero.TrainingDays = Math.Max(1, Classes.TrainingDays + TraitTrainingDays(hero));
             State.Citizens[index] = hero;
             Stock.Take(ResourceType.Gold, Classes.TrainingGold);
             Report($"{CitizenInfo.FullName(hero)} начинает учиться: {Classes.Get(heroClass).Name}, {Classes.TrainingDays} дн.");
@@ -142,6 +147,7 @@ namespace AdventurerCity.Simulation
                     if (hero.SlotA == Ability.None) hero.SlotA = first;
                     else if (hero.SlotB == Ability.None) hero.SlotB = first;
                     Report($"{CitizenInfo.FullName(hero)} освоил(а) второй путь: {Classes.Get(learned).Name}");
+                    AddChronicle(hero.Id, $"освоил(а) путь: {Classes.Get(learned).Name}");
 
                     var title = HeroTitle(hero);
                     if (title != null && !State.Titles.Contains(title.Id))

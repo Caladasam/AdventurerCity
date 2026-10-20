@@ -618,7 +618,7 @@ namespace AdventurerCity.Simulation.Combat
             if (defender.IsHero)
             {
                 defender.Downed = true;
-                defender.DownedTimer = CombatData.DownedSeconds;
+                defender.DownedTimer = CombatData.DownedSeconds * defender.DownedScale;
                 defender.HotTimer = 0f;
                 defender.DotTimer = 0f;
                 Emit(BattleEventKind.Downed, attacker, defender);
