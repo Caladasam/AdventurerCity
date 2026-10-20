@@ -69,6 +69,7 @@ namespace AdventurerCity.Simulation.Combat
         public int XpGained;
         public float DamageTaken;
         public float Scale = 1f;
+        public float HpScale = 1f;
 
         public readonly Dictionary<Combatant, float> Threat = new Dictionary<Combatant, float>();
 
@@ -114,7 +115,7 @@ namespace AdventurerCity.Simulation.Combat
                 AttackInterval = def.AttackInterval,
                 MagicAttack = def.MagicAttack,
                 MaxMana = maxMana,
-                ManaRegen = 2f + 0.2f * stats.Spi,
+                ManaRegen = CombatData.ManaRegenBase + CombatData.ManaRegenPerSpirit * stats.Spi,
                 HealPower = 1.5f * stats.Spi + (healer ? weapon.HealBonus : 0),
                 Injured = injured
             };
@@ -135,17 +136,19 @@ namespace AdventurerCity.Simulation.Combat
             return hero;
         }
 
-        public static Combatant FromEnemy(EnemyKind kind, float scale = 1f)
+        public static Combatant FromEnemy(EnemyKind kind, float scale = 1f, float hpScale = 0f)
         {
             var def = CombatData.Get(kind);
+            if (hpScale <= 0f) hpScale = scale;
             return new Combatant
             {
                 Name = def.Name,
                 Enemy = kind,
                 Level = def.Level,
                 Scale = scale,
-                MaxHp = def.Hp * scale,
-                Hp = def.Hp * scale,
+                HpScale = hpScale,
+                MaxHp = def.Hp * hpScale,
+                Hp = def.Hp * hpScale,
                 Armor = def.Armor,
                 Weapon = def.Damage * scale,
                 CritChance = CombatData.EnemyCritChance,

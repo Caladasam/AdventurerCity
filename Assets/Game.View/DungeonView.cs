@@ -168,17 +168,26 @@ namespace AdventurerCity.View
 
         void SyncActors(Expedition run)
         {
-            int tanks = 0, backline = 0, melee = 0;
+            int tanks = 0, backline = 0, melee = 0, backCount = 0;
+            foreach (var hero in run.Party)
+                if (IsBackline(hero.Role))
+                    backCount++;
             foreach (var hero in run.Party)
             {
                 Vector3 home;
-                switch (hero.Role)
+                if (hero.Role == CombatRole.Tank)
                 {
-                    case CombatRole.Tank: home = new Vector3(-1.6f, 0f, tanks++ * 1.8f); break;
-                    case CombatRole.Healer:
-                    case CombatRole.Support:
-                    case CombatRole.Ranged: home = new Vector3(-6f, 0f, (backline++ - 0.5f) * 2f); break;
-                    default: home = new Vector3(-2.6f, 0f, melee++ % 2 == 0 ? 2f : -2f); break;
+                    home = new Vector3(-1.4f, 0f, (tanks % 2 == 0 ? 1f : -1f) * (tanks / 2 + (tanks % 2)) * 1.6f);
+                    tanks++;
+                }
+                else if (IsBackline(hero.Role))
+                {
+                    home = new Vector3(-6f, 0f, (backline++ - (backCount - 1) * 0.5f) * 2f);
+                }
+                else
+                {
+                    home = new Vector3(-2.8f, 0f, (melee % 2 == 0 ? 1f : -1f) * (2f + melee / 2 * 1.6f));
+                    melee++;
                 }
                 if (!actors.ContainsKey(hero)) Spawn(hero, home);
             }
@@ -219,6 +228,14 @@ namespace AdventurerCity.View
             for (; eventCursor < events.Count; eventCursor++)
             {
                 var e = events[eventCursor];
+                if (e.Kind == BattleEventKind.Enrage)
+                {
+                    shakeTime = 0.3f;
+                    foreach (var actor in actors.Values)
+                        if (!actor.Unit.IsHero && actor.Unit.Active)
+                            AddText(actor, "ЯРОСТЬ!", new Color(1f, 0.3f, 0.2f), 18);
+                    continue;
+                }
                 actors.TryGetValue(e.Target ?? e.Source, out var target);
                 actors.TryGetValue(e.Source, out var source);
                 switch (e.Kind)
@@ -450,6 +467,8 @@ namespace AdventurerCity.View
                 default: return "";
             }
         }
+
+        static bool IsBackline(CombatRole role) => role == CombatRole.Healer || role == CombatRole.Support || role == CombatRole.Ranged;
 
         static Vector3 EnemySize(EnemyKind kind)
         {

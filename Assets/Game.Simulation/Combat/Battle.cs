@@ -17,7 +17,8 @@ namespace AdventurerCity.Simulation.Combat
         Revived,
         Summon,
         EnemyAoe,
-        Ability
+        Ability,
+        Enrage
     }
 
     public readonly struct BattleEvent
@@ -80,12 +81,20 @@ namespace AdventurerCity.Simulation.Combat
         public IReadOnlyList<Combatant> Heroes => heroes;
         public IReadOnlyList<Combatant> Enemies => enemies;
 
+        float GroupScale => heroes.Count > Dungeons.StandardParty ? Dungeons.StandardParty / (float)heroes.Count : 1f;
+
         public BattleOutcome Step()
         {
             if (Outcome != BattleOutcome.Ongoing) return Outcome;
 
             const float dt = CombatData.Tick;
+            var calm = Time < CombatData.EnrageStart;
             Time += dt;
+            if (calm && Time >= CombatData.EnrageStart)
+            {
+                Emit(BattleEventKind.Enrage, null, null);
+                Write("Враги звереют: урон растёт с каждой секундой");
+            }
             foreach (var unit in heroes) Advance(unit, dt);
             foreach (var unit in enemies) Advance(unit, dt);
 
@@ -301,9 +310,9 @@ namespace AdventurerCity.Simulation.Combat
             {
                 case AbilityEffect.Strike:
                     if (!target.Active) return;
-                    if (def.Interrupts && target.IsCasting) Interrupt(hero, target);
+                    if (def.Interrupts && Interruptible(target)) Interrupt(hero, target);
                     Hit(hero, target, def.Power, def.Magic, threat);
-                    if (def.Stun > 0f && target.Active)
+                    if (def.Stun > 0f && target.Active && !IsBoss(target))
                     {
                         target.StunTimer = def.Stun;
                         target.Cast = CastKind.None;
@@ -347,7 +356,7 @@ namespace AdventurerCity.Simulation.Combat
                     if (target.IsHero && target.Active) HealUnit(hero, target, dealt * def.Amount);
                     break;
                 case AbilityEffect.Interrupt:
-                    if (target.Active && target.IsCasting) Interrupt(hero, target);
+                    if (target.Active && Interruptible(target)) Interrupt(hero, target);
                     break;
                 case AbilityEffect.Taunt:
                     if (!target.Active) return;
@@ -388,7 +397,7 @@ namespace AdventurerCity.Simulation.Combat
                 case AbilityEffect.GroupHeal:
                     foreach (var ally in heroes)
                         if (ally.Active)
-                            HealUnit(hero, ally, def.Power + hero.HealPower * def.Scaling);
+                            HealUnit(hero, ally, (def.Power + hero.HealPower * def.Scaling) * GroupScale);
                     break;
                 case AbilityEffect.Shield:
                     if (target.Active) target.Absorb = def.Power + hero.HealPower * def.Scaling;
@@ -404,17 +413,17 @@ namespace AdventurerCity.Simulation.Combat
                 case AbilityEffect.PartyGuard:
                     foreach (var ally in heroes)
                     {
-                        if (!ally.Active || ally.GuardTimer > 0f && ally.GuardAmount > def.Amount) continue;
+                        if (!ally.Active || ally.GuardTimer > 0f && ally.GuardAmount > def.Amount * GroupScale) continue;
                         ally.GuardTimer = def.Duration;
-                        ally.GuardAmount = def.Amount;
+                        ally.GuardAmount = def.Amount * GroupScale;
                     }
                     break;
                 case AbilityEffect.PartyEmpower:
                     foreach (var ally in heroes)
                     {
-                        if (!ally.Active || ally.EmpowerTimer > 0f && ally.EmpowerAmount > def.Amount) continue;
+                        if (!ally.Active || ally.EmpowerTimer > 0f && ally.EmpowerAmount > def.Amount * GroupScale) continue;
                         ally.EmpowerTimer = def.Duration;
-                        ally.EmpowerAmount = def.Amount;
+                        ally.EmpowerAmount = def.Amount * GroupScale;
                     }
                     break;
                 case AbilityEffect.Mark:
@@ -429,7 +438,7 @@ namespace AdventurerCity.Simulation.Combat
                 case AbilityEffect.AreaStun:
                     foreach (var enemy in enemies)
                     {
-                        if (!enemy.Active) continue;
+                        if (!enemy.Active || IsBoss(enemy)) continue;
                         enemy.StunTimer = def.Duration;
                         enemy.Cast = CastKind.None;
                     }
@@ -468,10 +477,14 @@ namespace AdventurerCity.Simulation.Combat
         Combatant CastingEnemy()
         {
             foreach (var enemy in enemies)
-                if (enemy.Active && enemy.IsCasting)
+                if (enemy.Active && Interruptible(enemy))
                     return enemy;
             return null;
         }
+
+        static bool IsBoss(Combatant unit) => !unit.IsHero && CombatData.Get(unit.Enemy).Boss;
+
+        static bool Interruptible(Combatant unit) => unit.IsCasting && !IsBoss(unit);
 
         void ActEnemy(Combatant enemy)
         {
@@ -498,7 +511,7 @@ namespace AdventurerCity.Simulation.Combat
             {
                 enemy.SummonUsed = true;
                 for (var i = 0; i < def.SummonCount; i++)
-                    reinforcements.Add(Combatant.FromEnemy(def.SummonKind, enemy.Scale));
+                    reinforcements.Add(Combatant.FromEnemy(def.SummonKind, enemy.Scale, enemy.HpScale));
                 Emit(BattleEventKind.Summon, enemy, null);
                 Write($"{enemy.Name} зовёт подмогу");
             }
@@ -576,8 +589,14 @@ namespace AdventurerCity.Simulation.Combat
             return ApplyDamage(attacker, defender, damage, threatMultiplier, crit);
         }
 
+        public float EnrageMultiplier => Time < CombatData.EnrageStart
+            ? 1f
+            : 1f + CombatData.EnrageStep * (1 + (int)((Time - CombatData.EnrageStart) / CombatData.EnrageInterval));
+
         float ApplyDamage(Combatant attacker, Combatant defender, float damage, float threatMultiplier, bool crit = false)
         {
+            if (attacker != null && !attacker.IsHero) damage *= EnrageMultiplier;
+            if (defender.IsHero && defender.Role == CombatRole.Tank) damage *= 1f - CombatData.TankMitigation;
             if (defender.MarkTimer > 0f) damage *= 1f + Classes.MarkBonus;
             if (defender.GuardTimer > 0f) damage *= 1f - defender.GuardAmount;
             if (defender.IsHero)
@@ -703,7 +722,8 @@ namespace AdventurerCity.Simulation.Combat
             }
 
             var fallen = heroes.Count - standing;
-            if ((heroes.Count > 1 && fallen >= Math.Max(1, heroes.Count - 1)) || Time >= CombatData.MaxBattleSeconds)
+            var retreatAt = heroes.Count <= 3 ? heroes.Count - 1 : heroes.Count / 2 + 1;
+            if ((heroes.Count > 1 && fallen >= retreatAt) || Time >= CombatData.MaxBattleSeconds)
             {
                 StandUpFallen();
                 Write("Отряд отступает");

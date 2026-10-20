@@ -143,6 +143,12 @@ namespace AdventurerCity.Simulation.Combat
         public bool Interrupts;
         public float Stun;
         public string Description;
+
+        public string Text => Description
+            .Replace("{power}", Power.ToString("0.##"))
+            .Replace("{max}", (Power + Amount).ToString("0.##"))
+            .Replace("{amount}", (Amount * 100f).ToString("0"))
+            .Replace("{duration}", Duration.ToString("0"));
     }
 
     public sealed class HeroClassDef
@@ -155,7 +161,7 @@ namespace AdventurerCity.Simulation.Combat
         public Stats Base;
         public Stats Growth;
         public int Armor;
-        public int Weapon;
+        public float Weapon;
         public float AttackInterval;
         public bool MagicAttack;
         public Ability[] Abilities;
@@ -212,7 +218,7 @@ namespace AdventurerCity.Simulation.Combat
             new HeroClassDef
             {
                 Class = HeroClass.Fighter, Name = "Воин", Role = CombatRole.Tank, PowerStat = PowerStat.Str,
-                Base = new Stats(8, 4, 2, 4, 10), Growth = new Stats(1, 1, 0, 1, 2), Armor = 30, Weapon = 6, AttackInterval = 2.0f,
+                Base = new Stats(8, 4, 2, 4, 10), Growth = new Stats(1, 1, 0, 1, 2), Armor = 33, Weapon = 6, AttackInterval = 2.0f,
                 Abilities = new[] { Ability.ShieldBash, Ability.Taunt, Ability.DefensiveStance },
                 Description = "Танк со щитом: держит врагов на себе и прерывает касты."
             },
@@ -226,14 +232,14 @@ namespace AdventurerCity.Simulation.Combat
             new HeroClassDef
             {
                 Class = HeroClass.Barbarian, Name = "Варвар", Role = CombatRole.Melee, PowerStat = PowerStat.Str,
-                Base = new Stats(10, 7, 2, 2, 7), Growth = new Stats(2, 1, 0, 0, 1), Armor = 15, Weapon = 12, AttackInterval = 2.4f,
+                Base = new Stats(10, 7, 2, 2, 7), Growth = new Stats(2, 1, 0, 0, 1), Armor = 15, Weapon = 13, AttackInterval = 2.4f,
                 Abilities = new[] { Ability.Rage, Ability.RecklessStrike, Ability.Whirlwind },
                 Description = "Ближний урон: ярость, тяжёлые удары и вихрь по толпе."
             },
             new HeroClassDef
             {
                 Class = HeroClass.Paladin, Name = "Паладин", Role = CombatRole.Tank, PowerStat = PowerStat.Str, UsesMana = true,
-                Base = new Stats(7, 3, 4, 7, 9), Growth = new Stats(1, 0, 1, 1, 2), Armor = 28, Weapon = 7, AttackInterval = 2.2f,
+                Base = new Stats(7, 3, 4, 7, 9), Growth = new Stats(1, 0, 1, 1, 2), Armor = 25, Weapon = 7, AttackInterval = 2.2f,
                 Abilities = new[] { Ability.DivineSmite, Ability.LayOnHands, Ability.AuraOfProtection },
                 Description = "Танк со светом: бьёт священным уроном, спасает возложением рук, прикрывает отряд аурой."
             },
@@ -247,14 +253,14 @@ namespace AdventurerCity.Simulation.Combat
             new HeroClassDef
             {
                 Class = HeroClass.Bard, Name = "Бард", Role = CombatRole.Support, PowerStat = PowerStat.Agi, UsesMana = true,
-                Base = new Stats(3, 6, 5, 8, 7), Growth = new Stats(0, 1, 1, 1, 1), Armor = 10, Weapon = 7, AttackInterval = 1.8f,
+                Base = new Stats(3, 6, 5, 8, 7), Growth = new Stats(0, 1, 1, 1, 1), Armor = 10, Weapon = 8.4f, AttackInterval = 1.8f,
                 Abilities = new[] { Ability.Inspiration, Ability.ViciousMockery, Ability.SongOfRest },
                 Description = "Поддержка: вдохновляет отряд на урон, ослабляет врага насмешкой, подлечивает песней."
             },
             new HeroClassDef
             {
                 Class = HeroClass.Rogue, Name = "Плут", Role = CombatRole.Melee, PowerStat = PowerStat.Agi,
-                Base = new Stats(5, 11, 3, 2, 6), Growth = new Stats(1, 2, 0, 0, 1), Armor = 12, Weapon = 11, AttackInterval = 1.8f,
+                Base = new Stats(5, 11, 3, 2, 6), Growth = new Stats(1, 2, 0, 0, 1), Armor = 12, Weapon = 8.3f, AttackInterval = 1.8f,
                 Abilities = new[] { Ability.SneakAttack, Ability.PoisonBlade, Ability.Evasion },
                 Description = "Ближний урон из-за спины: удар исподтишка, яд, увёртливость."
             },
@@ -268,28 +274,28 @@ namespace AdventurerCity.Simulation.Combat
             new HeroClassDef
             {
                 Class = HeroClass.Ranger, Name = "Следопыт", Role = CombatRole.Ranged, PowerStat = PowerStat.Agi,
-                Base = new Stats(5, 10, 3, 4, 7), Growth = new Stats(1, 2, 0, 0, 1), Armor = 12, Weapon = 11, AttackInterval = 2.2f,
+                Base = new Stats(5, 10, 3, 4, 7), Growth = new Stats(1, 2, 0, 0, 1), Armor = 12, Weapon = 12.7f, AttackInterval = 2.2f,
                 Abilities = new[] { Ability.HuntersMark, Ability.AimedShot, Ability.Volley },
                 Description = "Дальний урон луком: метит добычу для всего отряда, прицельный выстрел, залп."
             },
             new HeroClassDef
             {
                 Class = HeroClass.Wizard, Name = "Волшебник", Role = CombatRole.Ranged, PowerStat = PowerStat.Int, UsesMana = true,
-                Base = new Stats(2, 4, 11, 5, 5), Growth = new Stats(0, 1, 2, 1, 1), Armor = 3, Weapon = 10, AttackInterval = 2.2f, MagicAttack = true,
+                Base = new Stats(2, 4, 11, 5, 5), Growth = new Stats(0, 1, 2, 1, 1), Armor = 3, Weapon = 9.4f, AttackInterval = 2.2f, MagicAttack = true,
                 Abilities = new[] { Ability.MagicMissile, Ability.Fireball, Ability.Counterspell },
                 Description = "Учёный маг: огненный шар по группе, волшебная стрела, контрзаклинание."
             },
             new HeroClassDef
             {
                 Class = HeroClass.Sorcerer, Name = "Чародей", Role = CombatRole.Ranged, PowerStat = PowerStat.Int, UsesMana = true,
-                Base = new Stats(2, 4, 10, 5, 6), Growth = new Stats(0, 1, 2, 1, 1), Armor = 3, Weapon = 10, AttackInterval = 2.0f, MagicAttack = true,
+                Base = new Stats(2, 4, 10, 5, 6), Growth = new Stats(0, 1, 2, 1, 1), Armor = 3, Weapon = 8.2f, AttackInterval = 2.0f, MagicAttack = true,
                 Abilities = new[] { Ability.ChaosBolt, Ability.ChainLightning, Ability.BloodMagic },
                 Description = "Врождённая магия: непредсказуемый сгусток хаоса, цепная молния, магия крови."
             },
             new HeroClassDef
             {
                 Class = HeroClass.Warlock, Name = "Колдун", Role = CombatRole.Ranged, PowerStat = PowerStat.Int, UsesMana = true,
-                Base = new Stats(2, 3, 9, 7, 7), Growth = new Stats(0, 1, 2, 1, 1), Armor = 5, Weapon = 9, AttackInterval = 2.0f, MagicAttack = true,
+                Base = new Stats(2, 3, 9, 7, 7), Growth = new Stats(0, 1, 2, 1, 1), Armor = 5, Weapon = 6.2f, AttackInterval = 2.0f, MagicAttack = true,
                 Abilities = new[] { Ability.EldritchBlast, Ability.Hex, Ability.LifeDrain },
                 Description = "Магия пакта: мистический заряд, сглаз, вытягивание жизни в пользу союзника."
             }
@@ -302,7 +308,7 @@ namespace AdventurerCity.Simulation.Combat
             {
                 Id = Ability.ShieldBash, Name = "Удар щитом", Class = HeroClass.Fighter, Effect = AbilityEffect.Strike, Trigger = AbilityTrigger.Ready,
                 Priority = 62, Cooldown = 6f, Power = 0.8f, Threat = 5f / 3f, Interrupts = true,
-                Description = "×0,8 урона, много угрозы, прерывает каст"
+                Description = "×{power} урона, много угрозы, прерывает каст (кроме боссов)"
             },
             new AbilityDef
             {
@@ -313,7 +319,7 @@ namespace AdventurerCity.Simulation.Combat
             {
                 Id = Ability.DefensiveStance, Name = "Оборонительная стойка", Class = HeroClass.Fighter, Effect = AbilityEffect.SelfGuard,
                 Trigger = AbilityTrigger.SelfHurt, Priority = 22, Cooldown = 20f, Duration = 6f, Amount = 0.4f,
-                Description = "−40% получаемого урона на 6 с, когда здоровье ниже половины"
+                Description = "−{amount}% получаемого урона на {duration} с, когда здоровье ниже половины"
             },
             new AbilityDef
             {
@@ -323,32 +329,32 @@ namespace AdventurerCity.Simulation.Combat
             new AbilityDef
             {
                 Id = Ability.Heal, Name = "Лечение", Class = HeroClass.Cleric, Effect = AbilityEffect.Heal, Trigger = AbilityTrigger.AllyHurt,
-                Priority = 30, Cast = 2f, Mana = 15f, Power = 20f, Scaling = 1f, Description = "Лечит самого раненого союзника"
+                Priority = 30, Cast = 2f, Mana = 15f, Power = 19.9f, Scaling = 1.01f, Description = "Лечит самого раненого союзника"
             },
             new AbilityDef
             {
                 Id = Ability.ShieldOfFaith, Name = "Щит веры", Class = HeroClass.Cleric, Effect = AbilityEffect.Shield, Trigger = AbilityTrigger.TankUnshielded,
-                Priority = 45, Cooldown = 10f, Mana = 10f, Power = 15f, Scaling = 1f / 1.5f, Description = "Поглощающий щит на танка"
+                Priority = 45, Cooldown = 10f, Mana = 10f, Power = 15f, Scaling = 0.66f, Description = "Поглощающий щит на танка"
             },
             new AbilityDef
             {
                 Id = Ability.Rage, Name = "Ярость", Class = HeroClass.Barbarian, Effect = AbilityEffect.SelfRage, Trigger = AbilityTrigger.Ready,
-                Priority = 28, Cooldown = 25f, Duration = 10f, Amount = 0.25f, Description = "+25% урона и −20% получаемого урона на 10 с"
+                Priority = 28, Cooldown = 25f, Duration = 10f, Amount = 0.25f, Description = "+{amount}% урона и −20% получаемого урона на {duration} с"
             },
             new AbilityDef
             {
                 Id = Ability.RecklessStrike, Name = "Безрассудный удар", Class = HeroClass.Barbarian, Effect = AbilityEffect.Strike, Trigger = AbilityTrigger.Ready,
-                Priority = 60, Cooldown = 6f, Power = 1.5f, Description = "×1,5 урона"
+                Priority = 60, Cooldown = 6f, Power = 1.63f, Description = "×{power} урона"
             },
             new AbilityDef
             {
                 Id = Ability.Whirlwind, Name = "Вихрь", Class = HeroClass.Barbarian, Effect = AbilityEffect.AreaStrike, Trigger = AbilityTrigger.ThreeEnemies,
-                Priority = 55, Cooldown = 12f, Power = 0.7f, Description = "×0,7 урона по всем врагам, если их 3 и больше"
+                Priority = 55, Cooldown = 12f, Power = 0.76f, Description = "×{power} урона по всем врагам, если их 3 и больше"
             },
             new AbilityDef
             {
                 Id = Ability.DivineSmite, Name = "Божественная кара", Class = HeroClass.Paladin, Effect = AbilityEffect.Strike, Trigger = AbilityTrigger.Ready,
-                Priority = 60, Cooldown = 8f, Mana = 10f, Power = 1.4f, Magic = true, Description = "×1,4 священного урона сквозь броню"
+                Priority = 60, Cooldown = 8f, Mana = 10f, Power = 1.4f, Magic = true, Description = "×{power} священного урона сквозь броню"
             },
             new AbilityDef
             {
@@ -358,129 +364,129 @@ namespace AdventurerCity.Simulation.Combat
             new AbilityDef
             {
                 Id = Ability.AuraOfProtection, Name = "Аура защиты", Class = HeroClass.Paladin, Effect = AbilityEffect.PartyGuard, Trigger = AbilityTrigger.TwoEnemies,
-                Priority = 26, Cooldown = 20f, Mana = 15f, Duration = 8f, Amount = 0.15f, Description = "−15% получаемого урона всему отряду на 8 с"
+                Priority = 26, Cooldown = 20f, Mana = 15f, Duration = 8f, Amount = 0.15f, Description = "−{amount}% получаемого урона всему отряду на {duration} с"
             },
             new AbilityDef
             {
                 Id = Ability.Rejuvenation, Name = "Омоложение", Class = HeroClass.Druid, Effect = AbilityEffect.HealOverTime, Trigger = AbilityTrigger.AllyNeedsHot,
-                Priority = 32, Mana = 12f, Power = 20f, Scaling = 1.2f, Duration = 10f, Description = "Лечит союзника постепенно за 10 с"
+                Priority = 32, Mana = 12f, Power = 19.6f, Scaling = 1.18f, Duration = 10f, Description = "Лечит союзника постепенно за {duration} с"
             },
             new AbilityDef
             {
                 Id = Ability.HealingWave, Name = "Волна исцеления", Class = HeroClass.Druid, Effect = AbilityEffect.GroupHeal, Trigger = AbilityTrigger.AllyHurt,
-                Priority = 31, Cooldown = 3f, Cast = 2.5f, Mana = 18f, Power = 12f, Scaling = 0.7f, Description = "Лечит весь отряд, когда кто-то ранен"
+                Priority = 31, Cooldown = 3f, Cast = 2.5f, Mana = 18f, Power = 11.8f, Scaling = 0.7f, Description = "Лечит весь отряд, когда кто-то ранен"
             },
             new AbilityDef
             {
                 Id = Ability.EntanglingVines, Name = "Опутывающие лозы", Class = HeroClass.Druid, Effect = AbilityEffect.AreaStun, Trigger = AbilityTrigger.TwoEnemies,
-                Priority = 29, Cooldown = 25f, Mana = 15f, Duration = 2f, Description = "Все враги обездвижены на 2 с, касты сбиваются"
+                Priority = 29, Cooldown = 25f, Mana = 15f, Duration = 2f, Description = "Все враги, кроме боссов, обездвижены на {duration} с, касты сбиваются"
             },
             new AbilityDef
             {
                 Id = Ability.Inspiration, Name = "Вдохновение", Class = HeroClass.Bard, Effect = AbilityEffect.PartyEmpower, Trigger = AbilityTrigger.Ready,
-                Priority = 27, Cooldown = 18f, Mana = 15f, Duration = 10f, Amount = 0.2f, Description = "+20% урона всему отряду на 10 с"
+                Priority = 27, Cooldown = 18f, Mana = 15f, Duration = 10f, Amount = 0.241f, Description = "+{amount}% урона всему отряду на {duration} с"
             },
             new AbilityDef
             {
                 Id = Ability.ViciousMockery, Name = "Колкая насмешка", Class = HeroClass.Bard, Effect = AbilityEffect.WeakenStrike, Trigger = AbilityTrigger.Ready,
-                Priority = 58, Cooldown = 8f, Mana = 8f, Power = 0.8f, Magic = true, Duration = 6f,
-                Description = "×0,8 урона, враг 6 с бьёт на 25% слабее"
+                Priority = 58, Cooldown = 8f, Mana = 8f, Power = 0.96f, Magic = true, Duration = 6f,
+                Description = "×{power} урона, враг {duration} с бьёт на 25% слабее"
             },
             new AbilityDef
             {
                 Id = Ability.SongOfRest, Name = "Песнь отдыха", Class = HeroClass.Bard, Effect = AbilityEffect.GroupHeal, Trigger = AbilityTrigger.GroupHurt,
-                Priority = 35, Cooldown = 12f, Mana = 15f, Power = 5f, Scaling = 0.35f, Description = "Слегка лечит весь отряд"
+                Priority = 35, Cooldown = 12f, Mana = 15f, Power = 6f, Scaling = 0.43f, Description = "Слегка лечит весь отряд"
             },
             new AbilityDef
             {
                 Id = Ability.SneakAttack, Name = "Удар исподтишка", Class = HeroClass.Rogue, Effect = AbilityEffect.Strike, Trigger = AbilityTrigger.NotTargeted,
-                Priority = 58, Cooldown = 6f, Power = 2f, Description = "×2 урона по врагу, который бьёт не плута"
+                Priority = 58, Cooldown = 6f, Power = 1.49f, Description = "×{power} урона по врагу, который бьёт не плута"
             },
             new AbilityDef
             {
                 Id = Ability.PoisonBlade, Name = "Отравленный клинок", Class = HeroClass.Rogue, Effect = AbilityEffect.DamageOverTime, Trigger = AbilityTrigger.TargetClean,
-                Priority = 52, Cooldown = 10f, Power = 0.3f, Duration = 8f, Description = "Яд: 0,3 удара в секунду 8 с"
+                Priority = 52, Cooldown = 10f, Power = 0.23f, Duration = 8f, Description = "Яд: ×{power} удара в секунду {duration} с"
             },
             new AbilityDef
             {
                 Id = Ability.Evasion, Name = "Увёртливость", Class = HeroClass.Rogue, Effect = AbilityEffect.SelfEvade, Trigger = AbilityTrigger.SelfTargeted,
-                Priority = 21, Cooldown = 20f, Duration = 5f, Description = "+40% уклонения на 5 с, когда враг бьёт плута"
+                Priority = 21, Cooldown = 20f, Duration = 5f, Description = "+40% уклонения на {duration} с, когда враг бьёт плута"
             },
             new AbilityDef
             {
                 Id = Ability.FlurryOfBlows, Name = "Шквал ударов", Class = HeroClass.Monk, Effect = AbilityEffect.MultiStrike, Trigger = AbilityTrigger.Ready,
-                Priority = 60, Cooldown = 6f, Power = 0.5f, Hits = 3, Description = "Три удара по ×0,5"
+                Priority = 60, Cooldown = 6f, Power = 0.5f, Hits = 3, Description = "Три удара по ×{power}"
             },
             new AbilityDef
             {
                 Id = Ability.StunningStrike, Name = "Оглушающий удар", Class = HeroClass.Monk, Effect = AbilityEffect.Strike, Trigger = AbilityTrigger.Ready,
-                Priority = 61, Cooldown = 10f, Power = 0.8f, Stun = 2f, Interrupts = true, Description = "×0,8 урона, оглушение на 2 с, прерывает каст"
+                Priority = 61, Cooldown = 10f, Power = 0.8f, Stun = 2f, Interrupts = true, Description = "×{power} урона, оглушение на 2 с, прерывает каст (кроме боссов)"
             },
             new AbilityDef
             {
                 Id = Ability.PatientDefense, Name = "Терпеливая оборона", Class = HeroClass.Monk, Effect = AbilityEffect.SelfEvade, Trigger = AbilityTrigger.SelfTargeted,
-                Priority = 21, Cooldown = 20f, Duration = 5f, Description = "+40% уклонения на 5 с, когда враг бьёт монаха"
+                Priority = 21, Cooldown = 20f, Duration = 5f, Description = "+40% уклонения на {duration} с, когда враг бьёт монаха"
             },
             new AbilityDef
             {
                 Id = Ability.HuntersMark, Name = "Метка охотника", Class = HeroClass.Ranger, Effect = AbilityEffect.Mark, Trigger = AbilityTrigger.TargetUnmarked,
-                Priority = 50, Cooldown = 12f, Duration = 10f, Description = "Помеченный враг получает +20% урона от всех 10 с"
+                Priority = 50, Cooldown = 12f, Duration = 10f, Description = "Помеченный враг получает +20% урона от всех {duration} с"
             },
             new AbilityDef
             {
                 Id = Ability.AimedShot, Name = "Прицельный выстрел", Class = HeroClass.Ranger, Effect = AbilityEffect.Strike, Trigger = AbilityTrigger.Ready,
-                Priority = 60, Cooldown = 8f, Cast = 1.5f, Power = 1.8f, Description = "×1,8 урона после прицеливания"
+                Priority = 60, Cooldown = 8f, Cast = 1.5f, Power = 2.08f, Description = "×{power} урона после прицеливания"
             },
             new AbilityDef
             {
                 Id = Ability.Volley, Name = "Залп", Class = HeroClass.Ranger, Effect = AbilityEffect.AreaStrike, Trigger = AbilityTrigger.ThreeEnemies,
-                Priority = 55, Cooldown = 12f, Power = 0.6f, Description = "×0,6 урона по всем врагам, если их 3 и больше"
+                Priority = 55, Cooldown = 12f, Power = 0.7f, Description = "×{power} урона по всем врагам, если их 3 и больше"
             },
             new AbilityDef
             {
                 Id = Ability.MagicMissile, Name = "Волшебная стрела", Class = HeroClass.Wizard, Effect = AbilityEffect.Strike, Trigger = AbilityTrigger.Ready,
-                Priority = 60, Cooldown = 4f, Mana = 8f, Power = 1.3f, Magic = true, Description = "×1,3 магического урона"
+                Priority = 60, Cooldown = 4f, Mana = 8f, Power = 1.22f, Magic = true, Description = "×{power} магического урона"
             },
             new AbilityDef
             {
                 Id = Ability.Fireball, Name = "Огненный шар", Class = HeroClass.Wizard, Effect = AbilityEffect.AreaStrike, Trigger = AbilityTrigger.TwoEnemies,
-                Priority = 55, Cooldown = 14f, Cast = 2f, Mana = 25f, Power = 1f, Magic = true, Description = "×1 магического урона по всем врагам"
+                Priority = 55, Cooldown = 14f, Cast = 2f, Mana = 25f, Power = 0.94f, Magic = true, Description = "×{power} магического урона по всем врагам"
             },
             new AbilityDef
             {
                 Id = Ability.Counterspell, Name = "Контрзаклинание", Class = HeroClass.Wizard, Effect = AbilityEffect.Interrupt, Trigger = AbilityTrigger.EnemyCasting,
-                Priority = 5, Cooldown = 12f, Mana = 15f, Description = "Сбивает каст врага издалека"
+                Priority = 5, Cooldown = 12f, Mana = 15f, Description = "Сбивает каст врага издалека (кроме боссов)"
             },
             new AbilityDef
             {
                 Id = Ability.ChaosBolt, Name = "Сгусток хаоса", Class = HeroClass.Sorcerer, Effect = AbilityEffect.RandomStrike, Trigger = AbilityTrigger.Ready,
-                Priority = 60, Cooldown = 5f, Mana = 10f, Power = 0.6f, Amount = 1.6f, Magic = true, Description = "От ×0,6 до ×2,2 магического урона"
+                Priority = 60, Cooldown = 5f, Mana = 10f, Power = 0.48f, Amount = 1.31f, Magic = true, Description = "От ×{power} до ×{max} магического урона"
             },
             new AbilityDef
             {
                 Id = Ability.ChainLightning, Name = "Цепная молния", Class = HeroClass.Sorcerer, Effect = AbilityEffect.ChainStrike, Trigger = AbilityTrigger.TwoEnemies,
-                Priority = 55, Cooldown = 10f, Mana = 20f, Power = 0.9f, Hits = 3, Magic = true, Description = "×0,9 урона по трём врагам"
+                Priority = 55, Cooldown = 10f, Mana = 20f, Power = 0.73f, Hits = 3, Magic = true, Description = "×{power} урона по трём врагам"
             },
             new AbilityDef
             {
                 Id = Ability.BloodMagic, Name = "Магия крови", Class = HeroClass.Sorcerer, Effect = AbilityEffect.SelfEmpower, Trigger = AbilityTrigger.Ready,
-                Priority = 28, Cooldown = 25f, Duration = 8f, Amount = 0.4f, Description = "Тратит 10% здоровья: +40% урона на 8 с"
+                Priority = 28, Cooldown = 25f, Duration = 8f, Amount = 0.4f, Description = "Тратит 10% здоровья: +{amount}% урона на {duration} с"
             },
             new AbilityDef
             {
                 Id = Ability.EldritchBlast, Name = "Мистический заряд", Class = HeroClass.Warlock, Effect = AbilityEffect.Strike, Trigger = AbilityTrigger.Ready,
-                Priority = 60, Cooldown = 3f, Power = 1.2f, Magic = true, Description = "×1,2 магического урона, без маны"
+                Priority = 60, Cooldown = 3f, Power = 0.83f, Magic = true, Description = "×{power} магического урона, без маны"
             },
             new AbilityDef
             {
                 Id = Ability.Hex, Name = "Сглаз", Class = HeroClass.Warlock, Effect = AbilityEffect.DamageOverTime, Trigger = AbilityTrigger.TargetClean,
-                Priority = 52, Cooldown = 10f, Mana = 10f, Power = 0.35f, Duration = 10f, Magic = true, Description = "Проклятие: 0,35 удара в секунду 10 с"
+                Priority = 52, Cooldown = 10f, Mana = 10f, Power = 0.24f, Duration = 10f, Magic = true, Description = "Проклятие: ×{power} удара в секунду {duration} с"
             },
             new AbilityDef
             {
                 Id = Ability.LifeDrain, Name = "Вытягивание жизни", Class = HeroClass.Warlock, Effect = AbilityEffect.Drain, Trigger = AbilityTrigger.AllyHurt,
-                Priority = 40, Cooldown = 8f, Mana = 12f, Power = 1f, Amount = 0.5f, Magic = true,
-                Description = "×1 урона, половина уходит лечением самому раненому союзнику"
+                Priority = 40, Cooldown = 8f, Mana = 12f, Power = 0.68f, Amount = 0.5f, Magic = true,
+                Description = "×{power} урона, {amount}% уходит лечением самому раненому союзнику"
             }
         };
 

@@ -24,7 +24,7 @@ namespace AdventurerCity.Simulation
         public const int HeroWageGold = 3;
         public const int ProvisionsPerHero = 2;
         public const int InjuryDays = 3;
-        public const int MaxPartySize = 3;
+        public const int MaxPartySize = 5;
         public const int HeroHirePlanks = 10;
         public const int HeroBreadPerDay = 1;
         public const int CombatStepsPerTick = 10;

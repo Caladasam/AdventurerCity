@@ -39,6 +39,7 @@ namespace AdventurerCity.Simulation.Combat
         public float PhaseTime { get; private set; }
         public float Elapsed { get; private set; }
         public int RoomIndex { get; private set; }
+        public RoomAffix Affix { get; private set; }
         public Battle Battle { get; private set; }
         public int Loot { get; private set; }
         public int Gold { get; private set; }
@@ -54,6 +55,9 @@ namespace AdventurerCity.Simulation.Combat
             ? $"{Loot + Gold} золота"
             : $"{Loot} {ResourceInfo.Name(LootType).ToLower()}, {Gold} золота";
         public float EnemyScale => Heroic ? Dungeons.HeroicScale : 1f;
+        public float PartyFactor => Party.Count / (float)Dungeons.StandardParty;
+        public float EnemyDamageScale => EnemyScale * (float)System.Math.Pow(System.Math.Max(1f, PartyFactor), Dungeons.PartyDamageExponent);
+        public float EnemyHpScale => EnemyScale * (float)System.Math.Pow(System.Math.Max(1f, PartyFactor), Dungeons.PartyHpExponent);
 
         public int Deaths
         {
@@ -127,7 +131,8 @@ namespace AdventurerCity.Simulation.Combat
             Phase = ExpeditionPhase.Room;
             PhaseTime = 0f;
             var room = Rooms[RoomIndex];
-            Write("Комната: " + room.Name);
+            Affix = room.IsCombat ? RollAffix(room.Kind == RoomKind.Boss) : RoomAffix.None;
+            Write("Комната: " + room.Name + (Affix != RoomAffix.None ? $" ({Dungeons.AffixName(Affix)})" : ""));
 
             switch (room.Kind)
             {
@@ -148,8 +153,19 @@ namespace AdventurerCity.Simulation.Combat
 
             if (room.Kind == RoomKind.Boss) BossReached = true;
             var foes = new List<Combatant>();
-            foreach (var kind in room.Enemies) foes.Add(Combatant.FromEnemy(kind, EnemyScale));
+            var damageScale = EnemyDamageScale * (Affix == RoomAffix.Fierce ? Dungeons.FierceDamage : 1f);
+            var hpScale = EnemyHpScale * (Affix == RoomAffix.Tough ? Dungeons.ToughHp : Affix == RoomAffix.Weakened ? Dungeons.WeakenedHp : 1f);
+            foreach (var kind in room.Enemies) foes.Add(Combatant.FromEnemy(kind, damageScale, hpScale));
+            if (Affix == RoomAffix.Reinforced)
+                foes.Add(Combatant.FromEnemy(room.Enemies[rng.Range(0, room.Enemies.Length - 1)], damageScale, hpScale));
             Battle = new Battle(Party, foes, rng, Log);
+        }
+
+        RoomAffix RollAffix(bool boss)
+        {
+            if (!rng.Chance(Dungeons.AffixChance)) return RoomAffix.None;
+            var affix = (RoomAffix)rng.Range(1, 4);
+            return boss && affix == RoomAffix.Reinforced ? RoomAffix.Weakened : affix;
         }
 
         void FinishBattle(BattleOutcome outcome)
@@ -161,7 +177,7 @@ namespace AdventurerCity.Simulation.Combat
             if (survivors > 0)
                 foreach (var hero in Party)
                     if (!hero.Dead)
-                        hero.XpGained += Battle.XpPool / survivors;
+                        hero.XpGained += (int)(Battle.XpPool * PartyFactor) / survivors;
 
             var room = Rooms[RoomIndex];
             Battle = null;
@@ -229,8 +245,8 @@ namespace AdventurerCity.Simulation.Combat
         void AddLoot(RoomTemplate room)
         {
             var multiplier = Heroic ? Dungeons.HeroicLootMultiplier : 1;
-            Loot += Roll(room.LootMin, room.LootMax) * multiplier;
-            Gold += Roll(room.GoldMin, room.GoldMax) * multiplier;
+            Loot += (int)System.Math.Round(Roll(room.LootMin, room.LootMax) * multiplier * PartyFactor);
+            Gold += (int)System.Math.Round(Roll(room.GoldMin, room.GoldMax) * multiplier * PartyFactor);
         }
 
         int Roll(int min, int max) => min == max ? min : rng.Range(min, max);

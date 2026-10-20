@@ -478,7 +478,7 @@ namespace AdventurerCity.View
             }
             GUI.enabled = true;
             if (!canSend && reason != null)
-                GUILayout.Label($"<color=#AAAAAA>{(partyIds.Count == 0 ? "Отметьте до 3 героев галочками" : reason)}</color>", smallLabel);
+                GUILayout.Label($"<color=#AAAAAA>{(partyIds.Count == 0 ? $"Отметьте до {SimConstants.MaxPartySize} героев галочками" : reason)}</color>", smallLabel);
 
             for (var i = 0; i < expeditions.Count; i++)
             {
@@ -637,7 +637,7 @@ namespace AdventurerCity.View
                 var def = Classes.Get(ability);
                 var from = def.Class == hero.Class ? "" : $" <color=#90CAF9>[{Classes.Get(def.Class).Name}]</color>";
                 var cost = (def.Mana > 0f ? $"{def.Mana:0} маны · " : "") + (def.Cooldown > 0f ? $"раз в {def.Cooldown:0} с" : "без перезарядки");
-                GUILayout.Label($"<b>{def.Name}</b>{from} — {def.Description}. <color=#AAAAAA>{cost}</color>", smallLabel);
+                GUILayout.Label($"<b>{def.Name}</b>{from} — {def.Text}. <color=#AAAAAA>{cost}</color>", smallLabel);
             }
 
             if (options.Count > 0)
@@ -855,7 +855,9 @@ namespace AdventurerCity.View
             {
                 case ExpeditionPhase.TravelOut: return "В пути к данжу";
                 case ExpeditionPhase.Room:
-                    var room = $"Комната {run.RoomIndex + 1}/{run.Rooms.Count}: {run.Rooms[run.RoomIndex].Name}";
+                    var affix = Dungeons.AffixName(run.Affix);
+                    var room = $"Комната {run.RoomIndex + 1}/{run.Rooms.Count}: {run.Rooms[run.RoomIndex].Name}" +
+                               (affix != null ? $" <color=#FFB74D>({affix})</color>" : "");
                     return run.Battle != null ? room + " — <color=#FF8A80>бой</color>" : room;
                 case ExpeditionPhase.Rest: return "Привал между комнатами";
                 case ExpeditionPhase.TravelBack: return run.Cleared ? "Возвращается с победой" : "Возвращается в город";

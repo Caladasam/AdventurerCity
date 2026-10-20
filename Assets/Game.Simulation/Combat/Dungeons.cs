@@ -10,6 +10,15 @@ namespace AdventurerCity.Simulation.Combat
         Boss
     }
 
+    public enum RoomAffix
+    {
+        None,
+        Tough,
+        Fierce,
+        Reinforced,
+        Weakened
+    }
+
     public sealed class RoomTemplate
     {
         public string Name;
@@ -45,6 +54,25 @@ namespace AdventurerCity.Simulation.Combat
         public const int BanditCampId = 4;
         public const float HeroicScale = 1.5f;
         public const int HeroicLootMultiplier = 2;
+        public const int StandardParty = 3;
+        public static float PartyHpExponent = 0.67f;
+        public static float PartyDamageExponent = 0.67f;
+        public static float AffixChance = 0.5f;
+        public static float ToughHp = 1.4f;
+        public static float FierceDamage = 1.3f;
+        public static float WeakenedHp = 0.7f;
+
+        public static string AffixName(RoomAffix affix)
+        {
+            switch (affix)
+            {
+                case RoomAffix.Tough: return "крепкие враги";
+                case RoomAffix.Fierce: return "свирепые враги";
+                case RoomAffix.Reinforced: return "подкрепление";
+                case RoomAffix.Weakened: return "потрёпанные враги";
+                default: return null;
+            }
+        }
 
         static readonly DungeonDef[] all =
         {
