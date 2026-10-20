@@ -199,18 +199,58 @@ namespace AdventurerCity.Simulation
         public override bool Execute(World world, out string error) => world.Scout(siteId, out error);
     }
 
-    public sealed class OrderGearCommand : Command
+    public sealed class CraftItemCommand : Command
+    {
+        readonly int baseId;
+        readonly int tier;
+
+        public CraftItemCommand(int baseId, int tier)
+        {
+            this.baseId = baseId;
+            this.tier = tier;
+        }
+
+        public override bool Execute(World world, out string error) => world.Craft(baseId, tier, out error);
+    }
+
+    public sealed class EquipItemCommand : Command
     {
         readonly int heroId;
-        readonly Combat.GearSlot slot;
+        readonly int itemId;
 
-        public OrderGearCommand(int heroId, Combat.GearSlot slot)
+        public EquipItemCommand(int heroId, int itemId)
+        {
+            this.heroId = heroId;
+            this.itemId = itemId;
+        }
+
+        public override bool Execute(World world, out string error) => world.Equip(heroId, itemId, out error);
+    }
+
+    public sealed class UnequipItemCommand : Command
+    {
+        readonly int heroId;
+        readonly ItemSlot slot;
+
+        public UnequipItemCommand(int heroId, ItemSlot slot)
         {
             this.heroId = heroId;
             this.slot = slot;
         }
 
-        public override bool Execute(World world, out string error) => world.OrderGear(heroId, slot, out error);
+        public override bool Execute(World world, out string error) => world.Unequip(heroId, slot, out error);
+    }
+
+    public sealed class SalvageItemCommand : Command
+    {
+        readonly int itemId;
+
+        public SalvageItemCommand(int itemId)
+        {
+            this.itemId = itemId;
+        }
+
+        public override bool Execute(World world, out string error) => world.Salvage(itemId, out error);
     }
 
     public sealed class DemolishCommand : Command

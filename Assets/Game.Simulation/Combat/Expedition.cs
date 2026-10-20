@@ -40,6 +40,7 @@ namespace AdventurerCity.Simulation.Combat
         public float Elapsed { get; private set; }
         public int RoomIndex { get; private set; }
         public RoomAffix Affix { get; private set; }
+        public List<Item> Drops { get; } = new List<Item>();
         public Battle Battle { get; private set; }
         public int Loot { get; private set; }
         public int Gold { get; private set; }
@@ -147,6 +148,7 @@ namespace AdventurerCity.Simulation.Combat
                     return;
                 case RoomKind.Stash:
                     AddLoot(room);
+                    if (rng.Chance(0.5f)) Drop(room);
                     RoomDone();
                     return;
             }
@@ -186,6 +188,7 @@ namespace AdventurerCity.Simulation.Combat
                 case BattleOutcome.Won:
                     if (room.Kind == RoomKind.Boss) BossKilled = true;
                     AddLoot(room);
+                    if (room.Kind == RoomKind.Boss || rng.Chance(Items.CombatRoomDropChance)) Drop(room);
                     RoomDone();
                     break;
                 case BattleOutcome.Retreated:
@@ -196,6 +199,7 @@ namespace AdventurerCity.Simulation.Combat
                     Wiped = true;
                     Loot = 0;
                     Gold = 0;
+                    Drops.Clear();
                     Phase = ExpeditionPhase.Done;
                     break;
             }
@@ -247,6 +251,14 @@ namespace AdventurerCity.Simulation.Combat
             var multiplier = Heroic ? Dungeons.HeroicLootMultiplier : 1;
             Loot += (int)System.Math.Round(Roll(room.LootMin, room.LootMax) * multiplier * PartyFactor);
             Gold += (int)System.Math.Round(Roll(room.GoldMin, room.GoldMax) * multiplier * PartyFactor);
+        }
+
+        void Drop(RoomTemplate room)
+        {
+            var boss = room.Kind == RoomKind.Boss;
+            var item = Items.Roll(rng, Items.ItemLevelFor(Dungeon, Heroic, boss), boss, Heroic, boss ? room.Enemies[0] : EnemyKind.Ratman);
+            Drops.Add(item);
+            Write($"Найдено: {item.Name} ({Items.RarityName(item.Rarity)})");
         }
 
         int Roll(int min, int max) => min == max ? min : rng.Range(min, max);

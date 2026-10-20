@@ -264,6 +264,7 @@ namespace AdventurerCity.Simulation
             var extraGold = (int)Math.Round(run.Gold * greed);
             Stock.Add(run.LootType, run.Loot + extraLoot);
             Stock.Add(ResourceType.Gold, run.Gold + extraGold);
+            StoreDrops(run, active.Record.HeroIds);
 
             var loot = run.LootSummary + (extraLoot + extraGold > 0 ? $" (+{greed * 100f:0}% от жадных)" : "");
             if (run.Cleared) Report($"«{run.Dungeon.Name}» зачищено! Добыча: {loot}");
@@ -284,6 +285,7 @@ namespace AdventurerCity.Simulation
                 {
                     Report($"{CitizenInfo.FullName(hero)} погиб(ла): «{run.Dungeon.Name}»");
                     Bury(hero, $"пал(а) в «{run.Dungeon.Name}»");
+                    ReturnGear(hero.Id);
                     citizens.RemoveAt(index);
                     workforceDirty = true;
                     continue;

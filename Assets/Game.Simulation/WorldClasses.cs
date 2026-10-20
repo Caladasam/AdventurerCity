@@ -33,13 +33,6 @@ namespace AdventurerCity.Simulation
 
         public static TitleDef HeroTitle(in Citizen hero) => Classes.TitleFor(hero.Class, hero.ClassMask);
 
-        public static Combatant HeroCombatant(in Citizen hero)
-        {
-            var fighter = Combatant.FromHero(CitizenInfo.FullName(hero), hero.Class, hero.HeroLevel, hero.InjuryDays > 0, hero.WeaponTier,
-                hero.ArmorTier, HeroAbilities(hero), HeroTitle(hero));
-            ApplyTraits(fighter, hero);
-            return fighter;
-        }
 
         public bool CanLearnClass(int heroId, HeroClass heroClass, out string reason)
         {

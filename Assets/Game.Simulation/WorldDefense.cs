@@ -198,7 +198,11 @@ namespace AdventurerCity.Simulation
                 if (fighter.Dead)
                 {
                     Report($"{CitizenInfo.FullName(citizen)} погиб(ла), защищая город");
-                    if (citizen.IsHero) Bury(citizen, "пал(а), защищая город");
+                    if (citizen.IsHero)
+                    {
+                        Bury(citizen, "пал(а), защищая город");
+                        ReturnGear(citizen.Id);
+                    }
                     citizens.RemoveAt(index);
                     workforceDirty = true;
                     continue;

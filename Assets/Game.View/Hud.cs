@@ -28,7 +28,9 @@ namespace AdventurerCity.View
         bool mapOpen;
         int selectedDungeon = Dungeons.MineId;
         int selectedHeroId;
-        bool personalityTab;
+        int heroTab;
+        ItemSlot stashSlot;
+        Vector2 stashScroll;
         GUIStyle leftButton;
         bool selectedHeroic;
 
@@ -437,7 +439,7 @@ namespace AdventurerCity.View
                 if (GUILayout.Button($"{CitizenInfo.FullName(hero)} — {ClassLine(hero)}, {hero.HeroLevel} ур. ({xp})", leftButton, GUILayout.Width(300f)))
                     selectedHeroId = selectedHeroId == hero.Id ? 0 : hero.Id;
                 GUI.backgroundColor = Color.white;
-                GUILayout.Label($"<color=#B0BEC5>{GearShort(hero.WeaponTier)}/{GearShort(hero.ArmorTier)}</color>", richLabel, GUILayout.Width(40f));
+                GUILayout.Label(GearMarks(world, hero.Id), richLabel, GUILayout.Width(40f));
                 var status = hero.OnExpedition ? "в походе"
                     : World.IsTraining(hero) ? $"<color=#90CAF9>учится {hero.TrainingDays} дн.</color>"
                     : hero.Hungry ? "<color=#FF8A80>голодает</color>"
@@ -632,7 +634,7 @@ namespace AdventurerCity.View
             var title = World.HeroTitle(hero);
 
             const float width = 440f;
-            var height = personalityTab ? 470f : 214f + abilities.Count * 34f + (options.Count > 0 ? 60f : 0f) + 4 * 24f + 50f;
+            var height = heroTab == 2 ? 470f : heroTab == 1 ? 560f : 214f + abilities.Count * 34f + (options.Count > 0 ? 60f : 0f) + 4 * 24f + 50f;
             var rect = Panel(new Rect(540f, TopBarHeight + 8f, width, height));
             GUILayout.BeginArea(new Rect(rect.x + 10f, rect.y + 6f, rect.width - 20f, rect.height - 10f));
 
@@ -642,15 +644,23 @@ namespace AdventurerCity.View
             if (GUILayout.Button("×", GUILayout.Width(24f))) selectedHeroId = 0;
             GUILayout.EndHorizontal();
             GUILayout.BeginHorizontal();
-            GUI.backgroundColor = personalityTab ? Color.white : ActiveTool;
-            if (GUILayout.Button("Классы и навыки", GUILayout.Width(150f))) personalityTab = false;
-            GUI.backgroundColor = personalityTab ? ActiveTool : Color.white;
-            if (GUILayout.Button("Личность и хроника", GUILayout.Width(150f))) personalityTab = true;
+            var tabs = new[] { "Классы и навыки", "Снаряжение", "Личность" };
+            for (var t = 0; t < tabs.Length; t++)
+            {
+                GUI.backgroundColor = heroTab == t ? ActiveTool : Color.white;
+                if (GUILayout.Button(tabs[t], GUILayout.Width(132f))) heroTab = t;
+            }
             GUI.backgroundColor = Color.white;
             GUILayout.EndHorizontal();
-            if (personalityTab)
+            if (heroTab == 2)
             {
                 DrawPersonality(world, hero);
+                GUILayout.EndArea();
+                return;
+            }
+            if (heroTab == 1)
+            {
+                DrawGear(world, hero);
                 GUILayout.EndArea();
                 return;
             }
@@ -779,46 +789,117 @@ namespace AdventurerCity.View
             world.Enqueue(new SetAbilitySlotCommand(hero.Id, slot, next));
         }
 
-        static string GearShort(int tier) => tier == 0 ? "—" : tier == 1 ? "Ж" : "С";
+        static string RarityColor(ItemRarity rarity)
+        {
+            switch (rarity)
+            {
+                case ItemRarity.Magic: return "#8FA8FF";
+                case ItemRarity.Rare: return "#FFE36E";
+                case ItemRarity.Unique: return "#FF9A3C";
+                default: return "#DDDDDD";
+            }
+        }
+
+        static string GearMarks(World world, int heroId)
+        {
+            var marks = "";
+            foreach (ItemSlot slot in System.Enum.GetValues(typeof(ItemSlot)))
+            {
+                var item = world.Equipped(heroId, slot);
+                marks += item == null ? "<color=#555555>■</color>" : $"<color={RarityColor(item.Rarity)}>■</color>";
+            }
+            return marks;
+        }
+
+        static string ItemTitle(Item item) =>
+            $"<color={RarityColor(item.Rarity)}><b>{item.Name}</b></color> <color=#999999>({Items.RarityName(item.Rarity)}, ур. предмета {item.ItemLevel}" +
+            (item.Rarity == ItemRarity.Normal ? "" : $", {Items.BaseName(Items.Base(item.BaseId), item.BaseTier).ToLower()}") + ")</color>";
+
+        void DrawGear(World world, in Citizen hero)
+        {
+            foreach (ItemSlot slot in System.Enum.GetValues(typeof(ItemSlot)))
+            {
+                var item = world.Equipped(hero.Id, slot);
+                GUILayout.BeginHorizontal();
+                GUILayout.Label($"<b>{Items.SlotName(slot)}:</b> " + (item != null ? ItemTitle(item) : "<color=#777777>пусто</color>"), smallLabel, GUILayout.Width(330f));
+                if (item != null && GUILayout.Button("Снять", GUILayout.Width(70f))) world.Enqueue(new UnequipItemCommand(hero.Id, slot));
+                GUILayout.EndHorizontal();
+                if (item != null)
+                {
+                    if (item.UniqueId != 0) GUILayout.Label($"<i><color=#C8A070>{Items.Unique(item.UniqueId).Lore}</color></i>", smallLabel);
+                    GUILayout.Label(Items.Describe(item), smallLabel);
+                }
+            }
+
+            GUILayout.Space(4f);
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("<b>Склад гильдии</b>", richLabel, GUILayout.Width(120f));
+            foreach (ItemSlot slot in System.Enum.GetValues(typeof(ItemSlot)))
+            {
+                GUI.backgroundColor = stashSlot == slot ? ActiveTool : Color.white;
+                if (GUILayout.Button($"{Items.SlotName(slot)} ({world.Stash(slot).Count})", GUILayout.Width(92f))) stashSlot = slot;
+            }
+            GUI.backgroundColor = Color.white;
+            GUILayout.EndHorizontal();
+
+            var stash = world.Stash(stashSlot);
+            if (stash.Count == 0) GUILayout.Label("<color=#AAAAAA>Пусто. Предметы падают в данжах и куются в кузнице.</color>", smallLabel);
+            stashScroll = GUILayout.BeginScrollView(stashScroll, GUILayout.Height(230f));
+            foreach (var item in stash)
+            {
+                GUILayout.BeginHorizontal();
+                GUILayout.Label(ItemTitle(item) + "\n" + Items.Describe(item), smallLabel, GUILayout.Width(280f));
+                var can = world.CanEquip(hero.Id, item.Id, out var reason);
+                GUI.enabled = can;
+                if (GUILayout.Button(new GUIContent("Надеть", reason), GUILayout.Width(62f))) world.Enqueue(new EquipItemCommand(hero.Id, item.Id));
+                GUI.enabled = true;
+                if (GUILayout.Button(new GUIContent("Разобрать", "Даёт: " + ResourceInfo.Format(World.SalvageYield(item))), GUILayout.Width(72f)))
+                    world.Enqueue(new SalvageItemCommand(item.Id));
+                GUILayout.EndHorizontal();
+                if (!can && reason != null) GUILayout.Label($"<color=#AAAAAA>{reason}</color>", smallLabel);
+            }
+            GUILayout.EndScrollView();
+        }
 
         void DrawForge(World world, Building forge)
         {
             const float width = 700f;
-            var heroes = new List<Citizen>();
-            foreach (var citizen in world.Citizens)
-                if (citizen.IsHero)
-                    heroes.Add(citizen);
             var orders = world.ForgeOrders;
-
-            var height = 130f + heroes.Count * 38f + orders.Count * 20f;
+            var height = 140f + Items.Bases.Count * 26f + orders.Count * 20f;
             var rect = Panel(new Rect(10f, TopBarHeight + 8f, width, height));
             GUILayout.BeginArea(new Rect(rect.x + 10f, rect.y + 6f, rect.width - 20f, rect.height - 10f));
 
             GUILayout.Label("<b>Кузница</b>", richLabel);
-            GUILayout.Label($"Рабочие: {forge.Workers}/{world.Def(forge).Workers}. Заказы куются по очереди; каждая работающая кузница ведёт свой заказ. " +
-                            "Железо: +1 к оружию, +3 к лечению лекаря, +3 брони; сталь — вдвое больше.", smallLabel);
+            GUILayout.Label($"Рабочие: {forge.Workers}/{world.Def(forge).Workers}. Куёт обычные предметы выбранной базы на склад гильдии; " +
+                            "магические, редкие и уникальные — только из данжей. Ярусы: простой → железный → стальной → мифриловый.", smallLabel);
             if (orders.Count > 0 && forge.Workers == 0)
                 GUILayout.Label("<color=#FF8A80>Нет рабочих: в городе не осталось взрослых, которых можно перевести в кузницу</color>", smallLabel);
-            else if (orders.Count > 0)
-                GUILayout.Label("<color=#AAAAAA>Пока есть заказы, кузница забирает рабочих у обычных зданий первой</color>", smallLabel);
-            if (heroes.Count == 0) GUILayout.Label("Героев нет — нанять их можно в гильдии.", smallLabel);
 
-            foreach (var hero in heroes)
+            foreach (var b in Items.Bases)
             {
                 GUILayout.BeginHorizontal();
-                GUILayout.Label($"{CitizenInfo.FullName(hero)} — {CombatData.Get(hero.Class).Name}, {hero.HeroLevel} ур.", GUILayout.Width(230f));
-                GearButton(world, hero, GearSlot.Weapon);
-                GearButton(world, hero, GearSlot.Armor);
+                GUILayout.Label($"<b>{char.ToUpper(b.Noun[0]) + b.Noun.Substring(1)}</b> <color=#999999>{Items.SlotName(b.Slot).ToLower()}: {Items.StatText(b.Implicit, b.ImplicitValues[1])}</color>",
+                    smallLabel, GUILayout.Width(300f));
+                for (var tier = 0; tier <= Items.MaxBaseTier; tier++)
+                {
+                    var can = world.CanCraft(b.Id, tier, out var reason);
+                    GUI.enabled = can;
+                    var cost = World.CraftCost(b.Slot, tier);
+                    if (GUILayout.Button(new GUIContent(new[] { "Прост.", "Жел.", "Стал.", "Мифр." }[tier], ResourceInfo.Format(cost) + (reason != null ? " — " + reason : "")),
+                            GUILayout.Width(80f)))
+                        world.Enqueue(new CraftItemCommand(b.Id, tier));
+                    GUI.enabled = true;
+                }
                 GUILayout.EndHorizontal();
             }
+            GUILayout.Label($"<color=#AAAAAA>Цена: простое — {ResourceInfo.Format(World.CraftCost(ItemSlot.Weapon, 0))}; железное — {ResourceInfo.Format(World.CraftCost(ItemSlot.Weapon, 1))}; " +
+                            $"стальное — {ResourceInfo.Format(World.CraftCost(ItemSlot.Weapon, 2))}; мифриловое — {ResourceInfo.Format(World.CraftCost(ItemSlot.Weapon, 3))}. Украшения дороже в золоте и самоцветах.</color>", smallLabel);
 
             if (orders.Count > 0) GUILayout.Label("<b>Очередь</b>", richLabel);
             foreach (var order in orders)
             {
-                var index = world.CitizenIndex(order.HeroId);
-                var owner = index >= 0 ? CitizenInfo.FullName(world.Citizens[index]) : "?";
                 GUILayout.BeginHorizontal();
-                GUILayout.Label($"{GearData.Name(order.Slot, order.Tier)} — {owner}", smallLabel, GUILayout.Width(300f));
+                GUILayout.Label(Items.BaseName(Items.Base(order.BaseId), order.Tier), smallLabel, GUILayout.Width(300f));
                 var bar = GUILayoutUtility.GetRect(160f, 12f, GUILayout.Width(160f));
                 DrawBar(new Rect(bar.x, bar.y + 4f, bar.width, 10f), order.Progress / World.ForgeTicks(order), new Color(0.9f, 0.6f, 0.25f));
                 GUILayout.EndHorizontal();
@@ -827,35 +908,6 @@ namespace AdventurerCity.View
             GUILayout.EndArea();
         }
 
-        void GearButton(World world, in Citizen hero, GearSlot slot)
-        {
-            var tier = slot == GearSlot.Weapon ? hero.WeaponTier : hero.ArmorTier;
-            var current = GearData.Name(slot, tier);
-            var pending = world.PendingOrder(hero.Id, slot);
-            string label;
-            var canOrder = false;
-            string reason = null;
-            if (pending != null)
-            {
-                label = $"{current}: куётся {Mathf.RoundToInt(100f * pending.Progress / World.ForgeTicks(pending))}%";
-            }
-            else if (tier >= GearData.MaxTier)
-            {
-                label = current;
-            }
-            else
-            {
-                canOrder = world.CanOrderGear(hero.Id, slot, out var next, out reason);
-                var cost = GearData.Cost(slot, next);
-                label = $"{current} → {GearData.Tier(next).WeaponName}: {ResourceInfo.Format(cost)}";
-                if (slot == GearSlot.Armor) label = $"{current} → {GearData.Tier(next).ArmorName}: {ResourceInfo.Format(cost)}";
-            }
-
-            GUI.enabled = canOrder;
-            if (GUILayout.Button(new GUIContent(label, reason), toolStyle, GUILayout.Width(220f), GUILayout.Height(34f)))
-                world.Enqueue(new OrderGearCommand(hero.Id, slot));
-            GUI.enabled = true;
-        }
 
         void DrawExpeditionWidget(World world)
         {

@@ -44,6 +44,7 @@ namespace AdventurerCity.Simulation.Combat
         public float TravelSeconds => 20f * Distance;
         public int RoomsBeforeBoss = 4;
         public int MinCombatRooms = 3;
+        public int ItemLevel = 1;
     }
 
     public static class Dungeons
@@ -78,7 +79,7 @@ namespace AdventurerCity.Simulation.Combat
         {
             new DungeonDef
             {
-                Id = MineId, Name = "Заброшенная шахта", LootType = ResourceType.Ore, Distance = 1,
+                Id = MineId, Name = "Заброшенная шахта", LootType = ResourceType.Ore, Distance = 1, ItemLevel = 3,
                 Pool = new[]
                 {
                     Combat("Крысиное гнездо", 2, 4, 10, 20, EnemyKind.Ratman, EnemyKind.Ratman, EnemyKind.Ratman),
@@ -95,7 +96,7 @@ namespace AdventurerCity.Simulation.Combat
             },
             new DungeonDef
             {
-                Id = CatacombsId, Name = "Затопленные катакомбы", LootType = ResourceType.Gems, Distance = 2,
+                Id = CatacombsId, Name = "Затопленные катакомбы", LootType = ResourceType.Gems, Distance = 2, ItemLevel = 7,
                 Pool = new[]
                 {
                     Combat("Склеп", 1, 2, 20, 35, EnemyKind.Skeleton, EnemyKind.Skeleton, EnemyKind.Ghoul),
@@ -112,7 +113,7 @@ namespace AdventurerCity.Simulation.Combat
             },
             new DungeonDef
             {
-                Id = WolfDenId, Name = "Волчье логово", LootType = ResourceType.Gold, Distance = 1, RoomsBeforeBoss = 2, MinCombatRooms = 2,
+                Id = WolfDenId, Name = "Волчье логово", LootType = ResourceType.Gold, Distance = 1, ItemLevel = 2, RoomsBeforeBoss = 2, MinCombatRooms = 2,
                 Pool = new[]
                 {
                     Combat("Волчья тропа", 0, 0, 10, 20, EnemyKind.Wolf, EnemyKind.Wolf, EnemyKind.Wolf),
@@ -126,7 +127,7 @@ namespace AdventurerCity.Simulation.Combat
             },
             new DungeonDef
             {
-                Id = BanditCampId, Name = "Лагерь разбойников", LootType = ResourceType.Bread, Distance = 2, RoomsBeforeBoss = 3, MinCombatRooms = 2,
+                Id = BanditCampId, Name = "Лагерь разбойников", LootType = ResourceType.Bread, Distance = 2, ItemLevel = 5, RoomsBeforeBoss = 3, MinCombatRooms = 2,
                 Pool = new[]
                 {
                     Combat("Дозор", 0, 0, 15, 25, EnemyKind.Bandit, EnemyKind.Archer),

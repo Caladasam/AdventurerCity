@@ -48,6 +48,7 @@ namespace AdventurerCity.Simulation
             if (state.Raids == null) state.Raids = new List<RaidRecord>();
             if (state.Titles == null) state.Titles = new List<int>();
             EnsurePersonalities();
+            EnsureItems();
             EnsureSites();
             RestoreExpeditions();
             RestoreRaids();

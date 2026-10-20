@@ -59,6 +59,8 @@ namespace AdventurerCity.Simulation
         public List<Relation> Relations = new List<Relation>();
         public List<ChronicleEntry> Chronicle = new List<ChronicleEntry>();
         public List<FallenHero> Fallen = new List<FallenHero>();
+        public List<Item> Items = new List<Item>();
+        public int NextItemId = 1;
         public int NextExpeditionId = 1;
     }
 
@@ -67,6 +69,7 @@ namespace AdventurerCity.Simulation
     {
         public int HeroId;
         public Combat.GearSlot Slot;
+        public int BaseId;
         public int Tier;
         public float Progress;
     }

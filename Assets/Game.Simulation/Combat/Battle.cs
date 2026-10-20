@@ -288,7 +288,7 @@ namespace AdventurerCity.Simulation.Combat
         void Execute(Combatant hero, int slot, AbilityDef def, Combatant target)
         {
             hero.Mana -= def.Mana;
-            hero.Cooldowns[slot] = def.Cooldown;
+            hero.Cooldowns[slot] = def.Cooldown * (1f - hero.CooldownReduction);
             if (def.Cast > 0f)
             {
                 hero.Cast = CastKind.Ability;
@@ -585,6 +585,7 @@ namespace AdventurerCity.Simulation.Combat
             var crit = rng.Chance(attacker.CritChance);
             if (crit) damage *= CombatData.CritMultiplier;
             damage *= 1f + attacker.DamageBonus + (attacker.EmpowerTimer > 0f ? attacker.EmpowerAmount : 0f);
+            if (attacker.Execute > 0f && defender.HpRatio < 0.35f) damage *= 1f + attacker.Execute;
             if (attacker.WeakenTimer > 0f) damage *= 1f - Classes.WeakenPenalty;
             return ApplyDamage(attacker, defender, damage, threatMultiplier, crit);
         }
@@ -608,6 +609,10 @@ namespace AdventurerCity.Simulation.Combat
 
             defender.Hp -= damage;
             if (defender.IsHero) defender.DamageTaken += damage;
+            if (attacker != null && attacker.IsHero && !defender.IsHero && attacker.Lifesteal > 0f && attacker.Active)
+                attacker.Hp = Math.Min(attacker.MaxHp, attacker.Hp + damage * attacker.Lifesteal);
+            if (defender.IsHero && defender.Thorns > 0f && attacker != null && !attacker.IsHero && attacker.Active && damage > 0f)
+                ApplyDamage(defender, attacker, damage * defender.Thorns, 1f);
             Emit(BattleEventKind.Hit, attacker, defender, damage, crit);
             if (attacker != null && attacker.IsHero && !defender.IsHero)
                 defender.Threat[attacker] = (defender.Threat.TryGetValue(attacker, out var t) ? t : 0f) + damage * threatMultiplier;
