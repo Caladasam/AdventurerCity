@@ -14,15 +14,19 @@ namespace AdventurerCity.Simulation
                 var level = world.HouseLevel(house);
                 var connected = house.IsConnected;
                 var needsMet = true;
+                var hungry = false;
+                var survives = true;
 
                 if (house.Residents > 0)
                 {
-                    house.FoodMet = connected &&
-                                    Feed(world.Stock, house.Residents * SimConstants.FoodPerResident, level.NeedsBread);
+                    var meal = connected ? Feed(world.Stock, house.Residents * SimConstants.FoodPerResident, level.NeedsBread) : Meal.None;
+                    house.FoodMet = meal == Meal.Full;
+                    hungry = meal == Meal.None;
                     house.FirewoodMet = !level.NeedsFirewood ||
                                         connected && world.Stock.Take(ResourceType.Logs, SimConstants.FirewoodPerHouse) ==
                                         SimConstants.FirewoodPerHouse;
                     needsMet = house.FoodMet && house.FirewoodMet;
+                    survives = !hungry && house.FirewoodMet;
                     if (connected)
                         world.Stock.Add(ResourceType.Gold, house.Residents * level.TaxPerResident);
                 }
@@ -41,7 +45,8 @@ namespace AdventurerCity.Simulation
                 else
                 {
                     house.SatisfiedDays = 0;
-                    house.UnhappyDays++;
+                    if (survives) house.UnhappyDays = 0;
+                    else house.UnhappyDays++;
                     if (house.UnhappyDays >= SimConstants.DaysToDowngrade && house.Level > 1)
                     {
                         house.Level--;
@@ -84,12 +89,24 @@ namespace AdventurerCity.Simulation
             return adults;
         }
 
-        static bool Feed(Stockpile stock, int need, bool breadOnly)
+        enum Meal
         {
-            if (breadOnly) return stock.Take(ResourceType.Bread, need) >= need;
+            None,
+            Substitute,
+            Full
+        }
+
+        static Meal Feed(Stockpile stock, int need, bool breadOnly)
+        {
+            if (breadOnly)
+            {
+                var bread = stock.Take(ResourceType.Bread, need);
+                if (bread >= need) return Meal.Full;
+                return bread + stock.Take(ResourceType.Grain, need - bread) >= need ? Meal.Substitute : Meal.None;
+            }
             var eaten = stock.Take(ResourceType.Grain, need);
             if (eaten < need) eaten += stock.Take(ResourceType.Bread, need - eaten);
-            return eaten >= need;
+            return eaten >= need ? Meal.Full : Meal.None;
         }
 
         static void TryUpgrade(World world, Building house)

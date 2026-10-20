@@ -128,6 +128,7 @@ namespace AdventurerCity.Simulation
 
         void DailyRegion()
         {
+            if (Day <= Region.GraceDays) return;
             foreach (var site in State.Sites)
             {
                 var def = Region.Get(site.Id);

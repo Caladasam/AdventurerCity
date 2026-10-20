@@ -341,6 +341,8 @@ namespace AdventurerCity.Simulation
             ShareExperience(survivors);
         }
 
+        public int HeroWage(in Citizen hero) => Math.Max(0, SimConstants.HeroWageGold + hero.HeroLevel + TraitWage(hero));
+
         void DailyHeroes()
         {
             var citizens = State.Citizens;
@@ -350,7 +352,7 @@ namespace AdventurerCity.Simulation
             {
                 var hero = citizens[i];
                 if (!hero.IsHero) continue;
-                var wage = SimConstants.HeroWageGold + TraitWage(hero);
+                var wage = HeroWage(hero);
                 if (Stock.Take(ResourceType.Gold, wage) < wage) unpaid = true;
                 if (!hero.OnExpedition)
                 {

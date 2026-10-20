@@ -58,6 +58,7 @@ namespace AdventurerCity.Simulation
     public static class Region
     {
         public const float TensionPerDay = 4f;
+        public const int GraceDays = 20;
         public const float TensionMax = 100f;
         public const float TensionDropOnRetreat = 30f;
         public const int ScoutTicksPerDistance = 40;

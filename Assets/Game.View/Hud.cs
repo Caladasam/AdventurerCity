@@ -421,7 +421,7 @@ namespace AdventurerCity.View
             GUILayout.BeginArea(new Rect(rect.x + 10f, rect.y + 6f, rect.width - 20f, rect.height - 10f));
 
             GUILayout.Label("<b>Гильдия</b>", richLabel);
-            GUILayout.Label($"Героев: {heroes.Count}. Каждый в день: {SimConstants.HeroWageGold} зол. жалованья и " +
+            GUILayout.Label($"Героев: {heroes.Count}. Каждый в день: {SimConstants.HeroWageGold} + уровень зол. жалованья и " +
                             $"{SimConstants.HeroBreadPerDay} хлеб пайка. Провизия на поход: {SimConstants.ProvisionsPerHero} хлеба на героя.", smallLabel);
 
             GUILayout.Label($"Нанять ({SimConstants.HeroHireGold} зол., {SimConstants.HeroHirePlanks} досок). Класс задаёт роль и 3 базовых навыка:", smallLabel);

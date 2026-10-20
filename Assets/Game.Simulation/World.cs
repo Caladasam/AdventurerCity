@@ -30,6 +30,7 @@ namespace AdventurerCity.Simulation
             {
                 Array.Resize(ref state.StockLimits, ResourceInfo.Count);
             }
+            if (state.StockLimits[(int)ResourceType.Planks] == 80) state.StockLimits[(int)ResourceType.Planks] = SimConstants.DefaultPlanksLimit;
             for (var i = 0; i < lastShortageWarning.Length; i++) lastShortageWarning[i] = -100;
             roadDistance = new int[state.Width * state.Height];
 
@@ -203,6 +204,7 @@ namespace AdventurerCity.Simulation
             {
                 RehouseHeroes();
                 Households.DailyUpdate(this);
+                PayUpkeep();
                 DailyHeroes();
                 DailyTraining();
                 DailyRegion();
@@ -355,6 +357,15 @@ namespace AdventurerCity.Simulation
         }
 
         internal void Report(string text) => events.Add(new SimEvent(State.Tick, text));
+
+        void PayUpkeep()
+        {
+            var due = 0;
+            foreach (var building in State.Buildings)
+                if (building.IsComplete)
+                    due += Def(building).Upkeep;
+            if (Stock.Take(ResourceType.Gold, due) < due) Report("Казна пуста: не хватило золота на содержание зданий");
+        }
 
         void MarkStructureChanged()
         {

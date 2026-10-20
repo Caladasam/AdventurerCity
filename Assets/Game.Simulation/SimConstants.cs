@@ -18,10 +18,10 @@ namespace AdventurerCity.Simulation
         public const float MinLogisticsEfficiency = 0.5f;
         public const float DemolishRefund = 0.5f;
         public const int StockLimitStep = 10;
-        public const int DefaultPlanksLimit = 80;
+        public const int DefaultPlanksLimit = 150;
         public const float ShortageWarningDays = 3f;
         public const int HeroHireGold = 50;
-        public const int HeroWageGold = 3;
+        public const int HeroWageGold = 2;
         public const int ProvisionsPerHero = 2;
         public const int InjuryDays = 3;
         public const int MaxPartySize = 5;

@@ -76,10 +76,16 @@ namespace AdventurerCity.Simulation
                 flows[(int)ResourceType.Gold].Produce("Налоги", house.Residents * level.TaxPerResident);
             }
 
+            foreach (var building in world.Buildings)
+            {
+                var upkeep = world.Def(building).Upkeep;
+                if (upkeep > 0 && building.IsComplete) flows[(int)ResourceType.Gold].Consume("Содержание зданий", upkeep);
+            }
+
             foreach (var citizen in world.Citizens)
             {
                 if (!citizen.IsHero) continue;
-                flows[(int)ResourceType.Gold].Consume("Жалованье героев", SimConstants.HeroWageGold);
+                flows[(int)ResourceType.Gold].Consume("Жалованье героев", world.HeroWage(citizen));
                 if (!citizen.OnExpedition)
                     flows[(int)ResourceType.Bread].Consume("Паёк героев", SimConstants.HeroBreadPerDay);
             }
