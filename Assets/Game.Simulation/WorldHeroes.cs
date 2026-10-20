@@ -148,7 +148,8 @@ namespace AdventurerCity.Simulation
                 var index = CitizenIndex(id);
                 if (index < 0) continue;
                 var hero = State.Citizens[index];
-                party.Add(Combatant.FromHero(CitizenInfo.FullName(hero), hero.Class, hero.HeroLevel, hero.InjuryDays > 0));
+                party.Add(Combatant.FromHero(CitizenInfo.FullName(hero), hero.Class, hero.HeroLevel, hero.InjuryDays > 0,
+                    hero.WeaponTier, hero.ArmorTier));
             }
 
             var active = new ActiveExpedition { Record = record };

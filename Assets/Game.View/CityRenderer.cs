@@ -136,6 +136,7 @@ namespace AdventurerCity.View
                 case BuildingKind.Farm: return 0.4f;
                 case BuildingKind.Woodcutter: return 1.6f;
                 case BuildingKind.Guild: return 3.4f;
+                case BuildingKind.Forge: return 2.4f;
                 default: return 2.2f;
             }
         }

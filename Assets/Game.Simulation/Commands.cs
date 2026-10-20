@@ -79,6 +79,25 @@ namespace AdventurerCity.Simulation
         }
     }
 
+    public sealed class TogglePriorityCommand : Command
+    {
+        readonly int buildingId;
+
+        public TogglePriorityCommand(int buildingId)
+        {
+            this.buildingId = buildingId;
+        }
+
+        public override bool Execute(World world, out string error)
+        {
+            error = null;
+            var building = world.GetBuilding(buildingId);
+            if (building == null) return false;
+            world.SetPriority(building, !building.Priority);
+            return true;
+        }
+    }
+
     public sealed class SetStockLimitCommand : Command
     {
         readonly ResourceType type;
@@ -120,6 +139,20 @@ namespace AdventurerCity.Simulation
         }
 
         public override bool Execute(World world, out string error) => world.SendExpedition(heroIds, out error);
+    }
+
+    public sealed class OrderGearCommand : Command
+    {
+        readonly int heroId;
+        readonly Combat.GearSlot slot;
+
+        public OrderGearCommand(int heroId, Combat.GearSlot slot)
+        {
+            this.heroId = heroId;
+            this.slot = slot;
+        }
+
+        public override bool Execute(World world, out string error) => world.OrderGear(heroId, slot, out error);
     }
 
     public sealed class DemolishCommand : Command

@@ -20,6 +20,8 @@ namespace AdventurerCity.Simulation
         public int InjuryDays;
         public bool OnExpedition;
         public bool Hungry;
+        public int WeaponTier;
+        public int ArmorTier;
     }
 
     public enum CitizenActivity

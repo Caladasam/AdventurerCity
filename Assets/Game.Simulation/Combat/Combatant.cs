@@ -60,13 +60,15 @@ namespace AdventurerCity.Simulation.Combat
         public bool IsCasting => Cast != CastKind.None;
         public float HpRatio => MaxHp <= 0f ? 0f : Hp / MaxHp;
 
-        public static Combatant FromHero(string name, HeroClass heroClass, int level, bool injured = false)
+        public static Combatant FromHero(string name, HeroClass heroClass, int level, bool injured = false, int weaponTier = 0, int armorTier = 0)
         {
             var def = CombatData.Get(heroClass);
             var stats = def.Base.Grow(def.Growth, level - 1);
             var maxHp = 40f + 8f * stats.Sta;
             if (injured) maxHp *= 1f - CombatData.InjuryHpPenalty;
             var maxMana = def.Role == CombatRole.Healer ? 50f + 10f * stats.Int : 0f;
+            var weapon = GearData.Tier(weaponTier);
+            var armor = GearData.Tier(armorTier);
             return new Combatant
             {
                 Name = name,
@@ -75,8 +77,8 @@ namespace AdventurerCity.Simulation.Combat
                 Level = level,
                 MaxHp = maxHp,
                 Hp = maxHp,
-                Armor = def.Armor,
-                Weapon = def.Weapon,
+                Armor = def.Armor + armor.ArmorBonus,
+                Weapon = def.Weapon + (def.Role == CombatRole.Healer ? 0 : weapon.WeaponBonus),
                 Power = 0.5f * stats.Str,
                 CritChance = 0.005f * stats.Agi,
                 DodgeChance = 0.004f * stats.Agi,
@@ -85,7 +87,7 @@ namespace AdventurerCity.Simulation.Combat
                 MaxMana = maxMana,
                 Mana = maxMana,
                 ManaRegen = 2f + 0.2f * stats.Spi,
-                HealPower = 1.5f * stats.Spi,
+                HealPower = 1.5f * stats.Spi + (def.Role == CombatRole.Healer ? weapon.HealBonus : 0),
                 Injured = injured
             };
         }

@@ -39,3 +39,7 @@ sysinfo.txt
 # OS
 .DS_Store
 Thumbs.db
+
+# Unity scene auto-recovery
+/[Aa]ssets/_Recovery/
+/[Aa]ssets/_Recovery.meta

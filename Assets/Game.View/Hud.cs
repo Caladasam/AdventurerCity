@@ -204,6 +204,11 @@ namespace AdventurerCity.View
                 DrawGuild(world);
                 return;
             }
+            if (building.Kind == BuildingKind.Forge && building.IsComplete)
+            {
+                DrawForge(world, building);
+                return;
+            }
 
             var def = world.Def(building);
             var lines = new List<string> { def.Name };
@@ -256,6 +261,10 @@ namespace AdventurerCity.View
             if (canPause &&
                 GUI.Button(new Rect(rect.x + 8f, rect.y + 8f + lines.Count * 20f, 120f, 24f), building.Paused ? "Продолжить" : "Пауза"))
                 world.Enqueue(new TogglePauseCommand(building.Id));
+            if (canPause &&
+                GUI.Button(new Rect(rect.x + 136f, rect.y + 8f + lines.Count * 20f, 220f, 24f),
+                    building.Priority ? "Приоритет найма: вкл" : "Приоритет найма: выкл"))
+                world.Enqueue(new TogglePriorityCommand(building.Id));
         }
 
         static string PerDay(ResourceAmount[] amounts, float cycles, string sign)
@@ -313,6 +322,9 @@ namespace AdventurerCity.View
                 }
                 GUILayout.EndHorizontal();
 
+                var stockLimit = type == ResourceType.Gold ? 0 : world.StockLimit(type);
+                if (stockLimit > 0 && stockLimit < flow.Consumed)
+                    GUILayout.Label($"<color=#FF8A80>Лимит {stockLimit} ниже суточного расхода ({flow.Consumed:0}) — в полночь ресурса не хватит</color>", smallLabel);
                 GUILayout.Label(Breakdown(flow), smallLabel);
             }
 
@@ -385,7 +397,8 @@ namespace AdventurerCity.View
 
                 var next = World.XpToNextLevel(hero.HeroLevel);
                 var xp = hero.HeroLevel >= CombatData.MaxLevel ? "макс." : $"{hero.HeroXp}/{next} оп.";
-                GUILayout.Label($"{CitizenInfo.FullName(hero)} — {CombatData.Get(hero.Class).Name}, {hero.HeroLevel} ур. ({xp})", GUILayout.Width(290f));
+                GUILayout.Label($"{CitizenInfo.FullName(hero)} — {CombatData.Get(hero.Class).Name}, {hero.HeroLevel} ур. ({xp})", GUILayout.Width(270f));
+                GUILayout.Label($"<color=#B0BEC5>{GearShort(hero.WeaponTier)}/{GearShort(hero.ArmorTier)}</color>", richLabel, GUILayout.Width(40f));
                 var status = hero.OnExpedition ? "в походе"
                     : hero.Hungry ? "<color=#FF8A80>голодает</color>"
                     : hero.InjuryDays > 0 ? $"<color=#FFB74D>ранен(а) {hero.InjuryDays} дн., слабее</color>"
@@ -415,6 +428,84 @@ namespace AdventurerCity.View
             }
 
             GUILayout.EndArea();
+        }
+
+        static string GearShort(int tier) => tier == 0 ? "—" : tier == 1 ? "Ж" : "С";
+
+        void DrawForge(World world, Building forge)
+        {
+            const float width = 700f;
+            var heroes = new List<Citizen>();
+            foreach (var citizen in world.Citizens)
+                if (citizen.IsHero)
+                    heroes.Add(citizen);
+            var orders = world.ForgeOrders;
+
+            var height = 130f + heroes.Count * 38f + orders.Count * 20f;
+            var rect = Panel(new Rect(10f, TopBarHeight + 8f, width, height));
+            GUILayout.BeginArea(new Rect(rect.x + 10f, rect.y + 6f, rect.width - 20f, rect.height - 10f));
+
+            GUILayout.Label("<b>Кузница</b>", richLabel);
+            GUILayout.Label($"Рабочие: {forge.Workers}/{world.Def(forge).Workers}. Заказы куются по очереди; каждая работающая кузница ведёт свой заказ. " +
+                            "Железо: +1 к оружию, +3 к лечению жреца, +3 брони; сталь — вдвое больше.", smallLabel);
+            if (orders.Count > 0 && forge.Workers == 0)
+                GUILayout.Label("<color=#FF8A80>Нет рабочих: в городе не осталось взрослых, которых можно перевести в кузницу</color>", smallLabel);
+            else if (orders.Count > 0)
+                GUILayout.Label("<color=#AAAAAA>Пока есть заказы, кузница забирает рабочих у обычных зданий первой</color>", smallLabel);
+            if (heroes.Count == 0) GUILayout.Label("Героев нет — нанять их можно в гильдии.", smallLabel);
+
+            foreach (var hero in heroes)
+            {
+                GUILayout.BeginHorizontal();
+                GUILayout.Label($"{CitizenInfo.FullName(hero)} — {CombatData.Get(hero.Class).Name}, {hero.HeroLevel} ур.", GUILayout.Width(230f));
+                GearButton(world, hero, GearSlot.Weapon);
+                GearButton(world, hero, GearSlot.Armor);
+                GUILayout.EndHorizontal();
+            }
+
+            if (orders.Count > 0) GUILayout.Label("<b>Очередь</b>", richLabel);
+            foreach (var order in orders)
+            {
+                var index = world.CitizenIndex(order.HeroId);
+                var owner = index >= 0 ? CitizenInfo.FullName(world.Citizens[index]) : "?";
+                GUILayout.BeginHorizontal();
+                GUILayout.Label($"{GearData.Name(order.Slot, order.Tier)} — {owner}", smallLabel, GUILayout.Width(300f));
+                var bar = GUILayoutUtility.GetRect(160f, 12f, GUILayout.Width(160f));
+                DrawBar(new Rect(bar.x, bar.y + 4f, bar.width, 10f), order.Progress / World.ForgeTicks(order), new Color(0.9f, 0.6f, 0.25f));
+                GUILayout.EndHorizontal();
+            }
+
+            GUILayout.EndArea();
+        }
+
+        void GearButton(World world, in Citizen hero, GearSlot slot)
+        {
+            var tier = slot == GearSlot.Weapon ? hero.WeaponTier : hero.ArmorTier;
+            var current = GearData.Name(slot, tier);
+            var pending = world.PendingOrder(hero.Id, slot);
+            string label;
+            var canOrder = false;
+            string reason = null;
+            if (pending != null)
+            {
+                label = $"{current}: куётся {Mathf.RoundToInt(100f * pending.Progress / World.ForgeTicks(pending))}%";
+            }
+            else if (tier >= GearData.MaxTier)
+            {
+                label = current;
+            }
+            else
+            {
+                canOrder = world.CanOrderGear(hero.Id, slot, out var next, out reason);
+                var cost = GearData.Cost(slot, next);
+                label = $"{current} → {GearData.Tier(next).WeaponName}: {ResourceInfo.Format(cost)}";
+                if (slot == GearSlot.Armor) label = $"{current} → {GearData.Tier(next).ArmorName}: {ResourceInfo.Format(cost)}";
+            }
+
+            GUI.enabled = canOrder;
+            if (GUILayout.Button(new GUIContent(label, reason), toolStyle, GUILayout.Width(220f), GUILayout.Height(34f)))
+                world.Enqueue(new OrderGearCommand(hero.Id, slot));
+            GUI.enabled = true;
         }
 
         void DrawExpeditionWidget(World world)

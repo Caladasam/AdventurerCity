@@ -19,6 +19,7 @@ namespace AdventurerCity.Simulation
         public bool FoodMet = true;
         public bool FirewoodMet = true;
         public bool Paused;
+        public bool Priority;
 
         [NonSerialized] public int Residents;
         [NonSerialized] public bool LimitReached;
@@ -50,7 +51,17 @@ namespace AdventurerCity.Simulation
         public List<int> Roads = new List<int>();
         public List<Citizen> Citizens = new List<Citizen>();
         public List<ExpeditionRecord> Expeditions = new List<ExpeditionRecord>();
+        public List<ForgeOrder> ForgeOrders = new List<ForgeOrder>();
         public int NextExpeditionId = 1;
+    }
+
+    [Serializable]
+    public sealed class ForgeOrder
+    {
+        public int HeroId;
+        public Combat.GearSlot Slot;
+        public int Tier;
+        public float Progress;
     }
 
     [Serializable]

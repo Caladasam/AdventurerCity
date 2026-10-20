@@ -51,9 +51,9 @@ namespace AdventurerCity.Simulation
             {
                 if (!building.IsComplete) continue;
                 var def = world.Def(building);
-                if (def.Recipe == null || !building.IsProducing) continue;
+                if (def.Recipe == null || building.Workers == 0 || building.Paused) continue;
 
-                var cycles = CyclesPerDay(world, building);
+                var cycles = CyclesPerDay(world, building, true);
                 foreach (var output in def.Recipe.Outputs)
                     flows[(int)output.Type].Produce(def.Name, cycles * output.Amount);
                 foreach (var input in def.Recipe.Inputs)
@@ -94,10 +94,11 @@ namespace AdventurerCity.Simulation
             return flows;
         }
 
-        public static float CyclesPerDay(World world, Building building)
+        public static float CyclesPerDay(World world, Building building, bool ignoreLimit = false)
         {
             var def = world.Def(building);
-            if (def.Recipe == null || !building.IsComplete || !building.IsProducing) return 0f;
+            if (def.Recipe == null || !building.IsComplete || building.Workers == 0 || building.Paused) return 0f;
+            if (building.LimitReached && !ignoreLimit) return 0f;
             return SimConstants.TicksPerDay * building.Efficiency * building.Workers / def.Workers / def.Recipe.CycleTicks;
         }
 

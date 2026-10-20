@@ -180,6 +180,7 @@ namespace AdventurerCity.Simulation
             if (accessDirty) RefreshAccess();
             if (workforceDirty) AssignWorkers();
             TickProduction();
+            TickForge();
             TickExpeditions();
             if (State.Tick % SimConstants.TicksPerDay == 0)
             {
@@ -193,6 +194,12 @@ namespace AdventurerCity.Simulation
         internal void SetPaused(Building building, bool paused)
         {
             building.Paused = paused;
+            workforceDirty = true;
+        }
+
+        internal void SetPriority(Building building, bool priority)
+        {
+            building.Priority = priority;
             workforceDirty = true;
         }
 
@@ -465,20 +472,9 @@ namespace AdventurerCity.Simulation
                 }
             }
 
-            var next = 0;
-            for (var i = 0; i < citizens.Count && next < State.Buildings.Count; i++)
-            {
-                var citizen = citizens[i];
-                if (citizen.WorkId != 0 || citizen.IsHero || !IsAdult(citizen)) continue;
-                while (next < State.Buildings.Count && !HasVacancy(State.Buildings[next])) next++;
-                if (next == State.Buildings.Count) break;
-
-                var work = State.Buildings[next];
-                citizen.WorkId = work.Id;
-                citizens[i] = citizen;
-                work.Workers++;
-                employed++;
-            }
+            employed += FillVacancies(true);
+            StealForPriority();
+            employed += FillVacancies(false);
 
             Adults = adults;
             EmployedWorkers = employed;
@@ -493,6 +489,58 @@ namespace AdventurerCity.Simulation
                 if (limit == 0 || Stock[output.Type] < limit) return false;
             }
             return true;
+        }
+
+        public bool IsPriority(Building building) =>
+            building.Priority || building.Kind == BuildingKind.Forge && State.ForgeOrders.Count > 0;
+
+        int FillVacancies(bool priorityOnly)
+        {
+            var citizens = State.Citizens;
+            var hired = 0;
+            var next = 0;
+            for (var i = 0; i < citizens.Count; i++)
+            {
+                var citizen = citizens[i];
+                if (citizen.WorkId != 0 || citizen.IsHero || !IsAdult(citizen)) continue;
+                while (next < State.Buildings.Count &&
+                       (!HasVacancy(State.Buildings[next]) || priorityOnly && !IsPriority(State.Buildings[next])))
+                    next++;
+                if (next == State.Buildings.Count) break;
+
+                var work = State.Buildings[next];
+                citizen.WorkId = work.Id;
+                citizens[i] = citizen;
+                work.Workers++;
+                hired++;
+            }
+            return hired;
+        }
+
+        void StealForPriority()
+        {
+            var citizens = State.Citizens;
+            var donor = citizens.Count - 1;
+            foreach (var building in State.Buildings)
+            {
+                if (!IsPriority(building)) continue;
+                while (HasVacancy(building) && donor >= 0)
+                {
+                    var citizen = citizens[donor];
+                    var from = citizen.WorkId != 0 ? GetBuilding(citizen.WorkId) : null;
+                    if (from == null || IsPriority(from))
+                    {
+                        donor--;
+                        continue;
+                    }
+
+                    from.Workers--;
+                    building.Workers++;
+                    citizen.WorkId = building.Id;
+                    citizens[donor] = citizen;
+                    donor--;
+                }
+            }
         }
 
         bool HasVacancy(Building building) =>
