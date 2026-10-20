@@ -48,7 +48,7 @@ namespace AdventurerCity.Simulation
         int FindScoutHero()
         {
             foreach (var citizen in State.Citizens)
-                if (citizen.IsHero && !citizen.OnExpedition && !citizen.Hungry)
+                if (IsAvailable(citizen) && !citizen.Hungry)
                     return citizen.Id;
             return 0;
         }

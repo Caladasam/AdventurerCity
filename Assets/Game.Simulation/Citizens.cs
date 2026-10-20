@@ -22,6 +22,11 @@ namespace AdventurerCity.Simulation
         public bool Hungry;
         public int WeaponTier;
         public int ArmorTier;
+        public int ClassMask;
+        public Ability SlotA;
+        public Ability SlotB;
+        public int TrainingClass;
+        public int TrainingDays;
     }
 
     public enum CitizenActivity

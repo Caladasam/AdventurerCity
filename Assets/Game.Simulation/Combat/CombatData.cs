@@ -1,19 +1,5 @@
 namespace AdventurerCity.Simulation.Combat
 {
-    public enum HeroClass
-    {
-        Guard,
-        Priest,
-        Warrior
-    }
-
-    public enum CombatRole
-    {
-        Tank,
-        Healer,
-        Damage
-    }
-
     public enum EnemyKind
     {
         Ratman,
@@ -54,19 +40,6 @@ namespace AdventurerCity.Simulation.Combat
             Int + growth.Int * levels,
             Spi + growth.Spi * levels,
             Sta + growth.Sta * levels);
-    }
-
-    public sealed class HeroClassDef
-    {
-        public HeroClass Class;
-        public string Name;
-        public CombatRole Role;
-        public Stats Base;
-        public Stats Growth;
-        public int Armor;
-        public int Weapon;
-        public float AttackInterval;
-        public bool MagicAttack;
     }
 
     public sealed class EnemyDef
@@ -110,28 +83,6 @@ namespace AdventurerCity.Simulation.Combat
         public const int XpPerEnemyLevel = 20;
         public const int XpPerLevel = 250;
         public const int MaxLevel = 5;
-
-        static readonly HeroClassDef[] classes =
-        {
-            new HeroClassDef
-            {
-                Class = HeroClass.Guard, Name = "Страж", Role = CombatRole.Tank,
-                Base = new Stats(8, 4, 2, 4, 10), Growth = new Stats(1, 1, 0, 1, 2),
-                Armor = 30, Weapon = 6, AttackInterval = 2.0f
-            },
-            new HeroClassDef
-            {
-                Class = HeroClass.Priest, Name = "Жрец", Role = CombatRole.Healer,
-                Base = new Stats(2, 3, 7, 10, 6), Growth = new Stats(0, 1, 1, 2, 1),
-                Armor = 5, Weapon = 4, AttackInterval = 2.0f, MagicAttack = true
-            },
-            new HeroClassDef
-            {
-                Class = HeroClass.Warrior, Name = "Воин", Role = CombatRole.Damage,
-                Base = new Stats(10, 7, 2, 2, 7), Growth = new Stats(2, 1, 0, 0, 1),
-                Armor = 15, Weapon = 12, AttackInterval = 2.4f
-            }
-        };
 
         static readonly EnemyDef[] enemies =
         {
@@ -177,7 +128,7 @@ namespace AdventurerCity.Simulation.Combat
             }
         };
 
-        public static HeroClassDef Get(HeroClass heroClass) => classes[(int)heroClass];
+        public static HeroClassDef Get(HeroClass heroClass) => Classes.Get(heroClass);
 
         public static EnemyDef Get(EnemyKind kind) => enemies[(int)kind];
     }

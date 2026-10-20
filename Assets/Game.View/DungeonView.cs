@@ -168,15 +168,17 @@ namespace AdventurerCity.View
 
         void SyncActors(Expedition run)
         {
-            int guards = 0, priests = 0, warriors = 0;
+            int tanks = 0, backline = 0, melee = 0;
             foreach (var hero in run.Party)
             {
                 Vector3 home;
-                switch (hero.Class)
+                switch (hero.Role)
                 {
-                    case HeroClass.Guard: home = new Vector3(-1.6f, 0f, guards++ * 1.8f); break;
-                    case HeroClass.Priest: home = new Vector3(-6f, 0f, (priests++ - 0.5f) * 2f); break;
-                    default: home = new Vector3(-2.6f, 0f, warriors++ % 2 == 0 ? 2f : -2f); break;
+                    case CombatRole.Tank: home = new Vector3(-1.6f, 0f, tanks++ * 1.8f); break;
+                    case CombatRole.Healer:
+                    case CombatRole.Support:
+                    case CombatRole.Ranged: home = new Vector3(-6f, 0f, (backline++ - 0.5f) * 2f); break;
+                    default: home = new Vector3(-2.6f, 0f, melee++ % 2 == 0 ? 2f : -2f); break;
                 }
                 if (!actors.ContainsKey(hero)) Spawn(hero, home);
             }
@@ -244,8 +246,9 @@ namespace AdventurerCity.View
                     case BattleEventKind.Interrupt:
                         AddText(target, "Прервано!", new Color(0.6f, 0.8f, 1f), 17);
                         break;
-                    case BattleEventKind.Taunt:
-                        AddText(source, "Провокация", new Color(0.7f, 0.8f, 1f), 13);
+                    case BattleEventKind.Ability:
+                        if (Classes.Get(e.Ability).Cast <= 0f && e.Ability != Ability.Revive)
+                            AddText(source, Classes.Get(e.Ability).Name, new Color(0.75f, 0.85f, 1f), 13);
                         break;
                     case BattleEventKind.Revived:
                         AddText(target, "Поднят!", new Color(1f, 0.95f, 0.6f), 17);
@@ -441,8 +444,7 @@ namespace AdventurerCity.View
         {
             switch (unit.Cast)
             {
-                case CastKind.Heal: return "Лечение";
-                case CastKind.Revive: return "Поднять";
+                case CastKind.Ability: return Classes.Get(unit.CastAbility).Name;
                 case CastKind.EnemyHeal: return "Лечение";
                 case CastKind.EnemyAoe: return CombatData.Get(unit.Enemy).AoeName;
                 default: return "";
@@ -473,9 +475,18 @@ namespace AdventurerCity.View
         {
             switch (heroClass)
             {
-                case HeroClass.Guard: return new Color(0.45f, 0.58f, 0.82f);
-                case HeroClass.Priest: return new Color(0.96f, 0.93f, 0.74f);
-                default: return new Color(0.85f, 0.28f, 0.22f);
+                case HeroClass.Fighter: return new Color(0.45f, 0.58f, 0.82f);
+                case HeroClass.Cleric: return new Color(0.96f, 0.93f, 0.74f);
+                case HeroClass.Barbarian: return new Color(0.85f, 0.28f, 0.22f);
+                case HeroClass.Paladin: return new Color(0.95f, 0.78f, 0.35f);
+                case HeroClass.Druid: return new Color(0.4f, 0.7f, 0.35f);
+                case HeroClass.Bard: return new Color(0.85f, 0.45f, 0.75f);
+                case HeroClass.Rogue: return new Color(0.3f, 0.3f, 0.35f);
+                case HeroClass.Monk: return new Color(0.95f, 0.6f, 0.25f);
+                case HeroClass.Ranger: return new Color(0.25f, 0.5f, 0.3f);
+                case HeroClass.Wizard: return new Color(0.3f, 0.45f, 0.95f);
+                case HeroClass.Sorcerer: return new Color(0.75f, 0.25f, 0.55f);
+                default: return new Color(0.45f, 0.25f, 0.65f);
             }
         }
 

@@ -46,6 +46,7 @@ namespace AdventurerCity.Simulation
             if (state.Sites == null) state.Sites = new List<SiteState>();
             if (state.Scouts == null) state.Scouts = new List<ScoutRecord>();
             if (state.Raids == null) state.Raids = new List<RaidRecord>();
+            if (state.Titles == null) state.Titles = new List<int>();
             EnsureSites();
             RestoreExpeditions();
         }
@@ -192,6 +193,7 @@ namespace AdventurerCity.Simulation
             {
                 Households.DailyUpdate(this);
                 DailyHeroes();
+                DailyTraining();
                 DailyRegion();
                 WarnShortages();
                 workforceDirty = true;

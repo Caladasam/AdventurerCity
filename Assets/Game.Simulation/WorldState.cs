@@ -55,6 +55,7 @@ namespace AdventurerCity.Simulation
         public List<SiteState> Sites = new List<SiteState>();
         public List<ScoutRecord> Scouts = new List<ScoutRecord>();
         public List<RaidRecord> Raids = new List<RaidRecord>();
+        public List<int> Titles = new List<int>();
         public int NextExpeditionId = 1;
     }
 

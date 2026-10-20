@@ -84,13 +84,12 @@ namespace AdventurerCity.Simulation
             {
                 if (citizen.IsHero && !citizen.OnExpedition)
                 {
-                    defenders.Add(Combatant.FromHero(CitizenInfo.FullName(citizen), citizen.Class, citizen.HeroLevel, citizen.InjuryDays > 0,
-                        citizen.WeaponTier, citizen.ArmorTier));
+                    defenders.Add(HeroCombatant(citizen));
                     defenderIds.Add(citizen.Id);
                 }
                 else if (IsGuard(citizen))
                 {
-                    defenders.Add(Combatant.FromHero("Стражник " + CitizenInfo.FullName(citizen), HeroClass.Warrior, 1));
+                    defenders.Add(Combatant.FromHero("Стражник " + CitizenInfo.FullName(citizen), HeroClass.Barbarian, 1));
                     defenderIds.Add(citizen.Id);
                 }
             }

@@ -27,6 +27,8 @@ namespace AdventurerCity.View
         bool economyOpen;
         bool mapOpen;
         int selectedDungeon = Dungeons.MineId;
+        int selectedHeroId;
+        GUIStyle leftButton;
         bool selectedHeroic;
 
         public void Init(GameRunner owner, BuildTool buildTool)
@@ -82,6 +84,7 @@ namespace AdventurerCity.View
                 background.Apply();
                 panelStyle = new GUIStyle(GUI.skin.box) { normal = { background = background } };
                 toolStyle = new GUIStyle(GUI.skin.button) { fontSize = 11, wordWrap = true };
+                leftButton = new GUIStyle(GUI.skin.button) { alignment = TextAnchor.MiddleLeft, richText = true, fontSize = 12 };
             }
 
             var world = runner.Sim;
@@ -215,6 +218,7 @@ namespace AdventurerCity.View
             if (building.Kind == BuildingKind.Guild && building.IsComplete)
             {
                 DrawGuild(world);
+                DrawHeroPanel(world);
                 return;
             }
             if (building.Kind == BuildingKind.Forge && building.IsComplete)
@@ -363,7 +367,7 @@ namespace AdventurerCity.View
 
         void DrawGuild(World world)
         {
-            const float width = 480f;
+            const float width = 520f;
             var heroes = new List<Citizen>();
             foreach (var citizen in world.Citizens)
                 if (citizen.IsHero)
@@ -374,14 +378,14 @@ namespace AdventurerCity.View
             partySelection.RemoveWhere(id =>
             {
                 var index = world.CitizenIndex(id);
-                return index < 0 || world.Citizens[index].OnExpedition;
+                return index < 0 || !World.IsAvailable(world.Citizens[index]);
             });
 
             var openDungeons = 0;
             foreach (var dungeon in Dungeons.All)
                 if (world.IsDungeonOpen(dungeon.Id))
                     openDungeons++;
-            var height = 206f + heroes.Count * 24f + (openDungeons - 1) / 3 * 24f;
+            var height = 290f + heroes.Count * 24f + (openDungeons - 1) / 3 * 24f;
             foreach (var active in expeditions) height += 30f + ExpeditionDetailsHeight(active, compact);
             var rect = Panel(new Rect(10f, TopBarHeight + 8f, width, height));
             GUILayout.BeginArea(new Rect(rect.x + 10f, rect.y + 6f, rect.width - 20f, rect.height - 10f));
@@ -390,12 +394,15 @@ namespace AdventurerCity.View
             GUILayout.Label($"Героев: {heroes.Count}. Каждый в день: {SimConstants.HeroWageGold} зол. жалованья и " +
                             $"{SimConstants.HeroBreadPerDay} хлеб пайка. Провизия на поход: {SimConstants.ProvisionsPerHero} хлеба на героя.", smallLabel);
 
-            GUILayout.BeginHorizontal();
-            GUILayout.Label($"Нанять ({SimConstants.HeroHireGold} зол., {SimConstants.HeroHirePlanks} досок):", GUILayout.Width(170f));
-            foreach (HeroClass heroClass in System.Enum.GetValues(typeof(HeroClass)))
-                if (GUILayout.Button(CombatData.Get(heroClass).Name, GUILayout.Width(85f)))
-                    world.Enqueue(new HireHeroCommand(heroClass));
-            GUILayout.EndHorizontal();
+            GUILayout.Label($"Нанять ({SimConstants.HeroHireGold} зол., {SimConstants.HeroHirePlanks} досок). Класс задаёт роль и 3 базовых навыка:", smallLabel);
+            for (var i = 0; i < Classes.All.Count; i++)
+            {
+                if (i % 4 == 0) GUILayout.BeginHorizontal();
+                var def = Classes.All[i];
+                if (GUILayout.Button(new GUIContent($"{def.Name} · {RoleShort(def.Role)}", def.Description), toolStyle, GUILayout.Width(121f), GUILayout.Height(22f)))
+                    world.Enqueue(new HireHeroCommand(def.Class));
+                if (i % 4 == 3 || i == Classes.All.Count - 1) GUILayout.EndHorizontal();
+            }
 
             if (heroes.Count == 0)
                 GUILayout.Label("Героев пока нет. Нанятый житель уходит с работы и тренируется в гильдии.", smallLabel);
@@ -403,7 +410,7 @@ namespace AdventurerCity.View
             foreach (var hero in heroes)
             {
                 GUILayout.BeginHorizontal();
-                if (!hero.OnExpedition)
+                if (World.IsAvailable(hero))
                 {
                     var selected = partySelection.Contains(hero.Id);
                     if (GUILayout.Toggle(selected, GUIContent.none, GUILayout.Width(18f)) != selected)
@@ -419,9 +426,13 @@ namespace AdventurerCity.View
 
                 var next = World.XpToNextLevel(hero.HeroLevel);
                 var xp = hero.HeroLevel >= CombatData.MaxLevel ? "макс." : $"{hero.HeroXp}/{next} оп.";
-                GUILayout.Label($"{CitizenInfo.FullName(hero)} — {CombatData.Get(hero.Class).Name}, {hero.HeroLevel} ур. ({xp})", GUILayout.Width(270f));
+                GUI.backgroundColor = selectedHeroId == hero.Id ? ActiveTool : Color.white;
+                if (GUILayout.Button($"{CitizenInfo.FullName(hero)} — {ClassLine(hero)}, {hero.HeroLevel} ур. ({xp})", leftButton, GUILayout.Width(300f)))
+                    selectedHeroId = selectedHeroId == hero.Id ? 0 : hero.Id;
+                GUI.backgroundColor = Color.white;
                 GUILayout.Label($"<color=#B0BEC5>{GearShort(hero.WeaponTier)}/{GearShort(hero.ArmorTier)}</color>", richLabel, GUILayout.Width(40f));
                 var status = hero.OnExpedition ? "в походе"
+                    : World.IsTraining(hero) ? $"<color=#90CAF9>учится {hero.TrainingDays} дн.</color>"
                     : hero.Hungry ? "<color=#FF8A80>голодает</color>"
                     : hero.InjuryDays > 0 ? $"<color=#FFB74D>ранен(а) {hero.InjuryDays} дн., слабее</color>"
                     : "<color=#8BE28B>готов(а)</color>";
@@ -574,6 +585,114 @@ namespace AdventurerCity.View
             GUILayout.EndArea();
         }
 
+        static string RoleShort(CombatRole role)
+        {
+            switch (role)
+            {
+                case CombatRole.Tank: return "танк";
+                case CombatRole.Healer: return "лекарь";
+                case CombatRole.Support: return "поддерж.";
+                case CombatRole.Melee: return "ближн.";
+                default: return "дальн.";
+            }
+        }
+
+        static string ClassLine(in Citizen hero)
+        {
+            var line = Classes.Get(hero.Class).Name;
+            foreach (var def in Classes.All)
+                if (def.Class != hero.Class && Classes.HasClass(hero.ClassMask, def.Class))
+                    line += "/" + def.Name;
+            return line;
+        }
+
+        void DrawHeroPanel(World world)
+        {
+            var index = selectedHeroId != 0 ? world.CitizenIndex(selectedHeroId) : -1;
+            if (index < 0) return;
+            var hero = world.Citizens[index];
+            var primary = Classes.Get(hero.Class);
+            var abilities = World.HeroAbilities(hero);
+            var options = World.SlotOptions(hero);
+            var title = World.HeroTitle(hero);
+
+            const float width = 440f;
+            var height = 190f + abilities.Count * 34f + (options.Count > 0 ? 60f : 0f) + 4 * 24f + 50f;
+            var rect = Panel(new Rect(540f, TopBarHeight + 8f, width, height));
+            GUILayout.BeginArea(new Rect(rect.x + 10f, rect.y + 6f, rect.width - 20f, rect.height - 10f));
+
+            GUILayout.BeginHorizontal();
+            GUILayout.Label($"<b>{CitizenInfo.FullName(hero)}</b> — {ClassLine(hero)}, {hero.HeroLevel} ур.", richLabel);
+            GUILayout.FlexibleSpace();
+            if (GUILayout.Button("×", GUILayout.Width(24f))) selectedHeroId = 0;
+            GUILayout.EndHorizontal();
+            GUILayout.Label($"Роль в бою: {Classes.RoleName(primary.Role)}. {primary.Description}", smallLabel);
+            GUILayout.Label(title != null
+                ? $"Титул: <b>«{title.Name}»</b> — {title.BonusText}"
+                : "<color=#AAAAAA>Титула нет: некоторые сочетания классов дают скрытый титул с бонусом</color>", smallLabel);
+
+            GUILayout.Label("<b>Навыки</b> (герой применяет их сам, по порядку приоритета):", richLabel);
+            foreach (var ability in abilities)
+            {
+                var def = Classes.Get(ability);
+                var from = def.Class == hero.Class ? "" : $" <color=#90CAF9>[{Classes.Get(def.Class).Name}]</color>";
+                var cost = (def.Mana > 0f ? $"{def.Mana:0} маны · " : "") + (def.Cooldown > 0f ? $"раз в {def.Cooldown:0} с" : "без перезарядки");
+                GUILayout.Label($"<b>{def.Name}</b>{from} — {def.Description}. <color=#AAAAAA>{cost}</color>", smallLabel);
+            }
+
+            if (options.Count > 0)
+            {
+                GUILayout.Label($"<b>Свободные слоты</b> ({Classes.FreeSlots}): клик — следующий навык из изученных классов", richLabel);
+                GUILayout.BeginHorizontal();
+                SlotButton(world, hero, 0, hero.SlotA, options);
+                SlotButton(world, hero, 1, hero.SlotB, options);
+                GUILayout.EndHorizontal();
+            }
+
+            GUILayout.Label($"<b>Учить класс</b> — {Classes.TrainingGold} зол., {Classes.TrainingDays} дн. без походов. Второй класс с {Classes.SecondClassLevel}-го уровня, третий с {Classes.ThirdClassLevel}-го.", smallLabel);
+            if (World.IsTraining(hero))
+            {
+                GUILayout.Label($"<color=#90CAF9>Учится: {Classes.Get((HeroClass)(hero.TrainingClass - 1)).Name}, осталось {hero.TrainingDays} дн.</color>", richLabel);
+            }
+            else
+            {
+                string reason = null;
+                for (var i = 0; i < Classes.All.Count; i++)
+                {
+                    if (i % 4 == 0) GUILayout.BeginHorizontal();
+                    var def = Classes.All[i];
+                    var can = world.CanLearnClass(hero.Id, def.Class, out var why);
+                    if (!can && reason == null && why != "Класс уже изучен") reason = why;
+                    GUI.enabled = can;
+                    if (GUILayout.Button(new GUIContent(def.Name, def.Description), toolStyle, GUILayout.Width(100f), GUILayout.Height(22f)))
+                        world.Enqueue(new LearnClassCommand(hero.Id, def.Class));
+                    GUI.enabled = true;
+                    if (i % 4 == 3 || i == Classes.All.Count - 1) GUILayout.EndHorizontal();
+                }
+                if (reason != null) GUILayout.Label($"<color=#AAAAAA>{reason}</color>", smallLabel);
+            }
+
+            var known = 0;
+            var names = new List<string>();
+            foreach (var t in Classes.Titles)
+            {
+                if (!world.IsTitleDiscovered(t.Id)) continue;
+                known++;
+                names.Add($"{t.Name} ({Classes.Get(t.A).Name} + {Classes.Get(t.B).Name})");
+            }
+            GUILayout.Label($"<color=#AAAAAA>Открыто титулов: {known}/{Classes.Titles.Count}{(names.Count > 0 ? ": " + string.Join(", ", names) : "")}</color>", smallLabel);
+            GUILayout.EndArea();
+        }
+
+        void SlotButton(World world, in Citizen hero, int slot, Ability current, List<Ability> options)
+        {
+            var text = current == Ability.None || !options.Contains(current) ? "— пусто —" : Classes.Get(current).Name;
+            if (!GUILayout.Button(text, GUILayout.Width(200f))) return;
+            var position = options.IndexOf(current);
+            var next = position + 1 >= options.Count ? Ability.None : options[position + 1];
+            world.Enqueue(new SetAbilitySlotCommand(hero.Id, slot, next));
+        }
+
         static string GearShort(int tier) => tier == 0 ? "—" : tier == 1 ? "Ж" : "С";
 
         void DrawForge(World world, Building forge)
@@ -591,7 +710,7 @@ namespace AdventurerCity.View
 
             GUILayout.Label("<b>Кузница</b>", richLabel);
             GUILayout.Label($"Рабочие: {forge.Workers}/{world.Def(forge).Workers}. Заказы куются по очереди; каждая работающая кузница ведёт свой заказ. " +
-                            "Железо: +1 к оружию, +3 к лечению жреца, +3 брони; сталь — вдвое больше.", smallLabel);
+                            "Железо: +1 к оружию, +3 к лечению лекаря, +3 брони; сталь — вдвое больше.", smallLabel);
             if (orders.Count > 0 && forge.Workers == 0)
                 GUILayout.Label("<color=#FF8A80>Нет рабочих: в городе не осталось взрослых, которых можно перевести в кузницу</color>", smallLabel);
             else if (orders.Count > 0)

@@ -67,7 +67,7 @@ namespace AdventurerCity.Simulation
             foreach (var id in heroIds)
             {
                 var index = CitizenIndex(id);
-                if (index < 0 || !State.Citizens[index].IsHero || State.Citizens[index].OnExpedition)
+                if (index < 0 || !IsAvailable(State.Citizens[index]))
                 {
                     reason = "Кто-то из отряда недоступен";
                     return false;
@@ -121,6 +121,10 @@ namespace AdventurerCity.Simulation
             hero.Class = heroClass;
             hero.HeroLevel = 1;
             hero.HeroXp = 0;
+            hero.ClassMask = 0;
+            hero.SlotA = Ability.None;
+            hero.SlotB = Ability.None;
+            hero.TrainingClass = 0;
             hero.WorkId = 0;
             citizens[candidate] = hero;
             Stock.Take(ResourceType.Gold, SimConstants.HeroHireGold);
@@ -163,9 +167,7 @@ namespace AdventurerCity.Simulation
             {
                 var index = CitizenIndex(id);
                 if (index < 0) continue;
-                var hero = State.Citizens[index];
-                party.Add(Combatant.FromHero(CitizenInfo.FullName(hero), hero.Class, hero.HeroLevel, hero.InjuryDays > 0,
-                    hero.WeaponTier, hero.ArmorTier));
+                party.Add(HeroCombatant(State.Citizens[index]));
             }
 
             var active = new ActiveExpedition { Record = record };

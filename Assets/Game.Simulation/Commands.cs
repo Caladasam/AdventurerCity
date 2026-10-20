@@ -129,6 +129,36 @@ namespace AdventurerCity.Simulation
         public override bool Execute(World world, out string error) => world.HireHero(heroClass, out error);
     }
 
+    public sealed class LearnClassCommand : Command
+    {
+        readonly int heroId;
+        readonly Combat.HeroClass heroClass;
+
+        public LearnClassCommand(int heroId, Combat.HeroClass heroClass)
+        {
+            this.heroId = heroId;
+            this.heroClass = heroClass;
+        }
+
+        public override bool Execute(World world, out string error) => world.LearnClass(heroId, heroClass, out error);
+    }
+
+    public sealed class SetAbilitySlotCommand : Command
+    {
+        readonly int heroId;
+        readonly int slot;
+        readonly Combat.Ability ability;
+
+        public SetAbilitySlotCommand(int heroId, int slot, Combat.Ability ability)
+        {
+            this.heroId = heroId;
+            this.slot = slot;
+            this.ability = ability;
+        }
+
+        public override bool Execute(World world, out string error) => world.SetAbilitySlot(heroId, slot, ability, out error);
+    }
+
     public sealed class SendExpeditionCommand : Command
     {
         readonly List<int> heroIds;

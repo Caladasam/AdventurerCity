@@ -16,7 +16,8 @@ namespace AdventurerCity.Simulation.Combat
         Died,
         Revived,
         Summon,
-        EnemyAoe
+        EnemyAoe,
+        Ability
     }
 
     public readonly struct BattleEvent
@@ -26,14 +27,16 @@ namespace AdventurerCity.Simulation.Combat
         public readonly Combatant Target;
         public readonly float Amount;
         public readonly bool Crit;
+        public readonly Ability Ability;
 
-        public BattleEvent(BattleEventKind kind, Combatant source, Combatant target, float amount = 0f, bool crit = false)
+        public BattleEvent(BattleEventKind kind, Combatant source, Combatant target, float amount = 0f, bool crit = false, Ability ability = Ability.None)
         {
             Kind = kind;
             Source = source;
             Target = target;
             Amount = amount;
             Crit = crit;
+            Ability = ability;
         }
     }
 
@@ -47,9 +50,6 @@ namespace AdventurerCity.Simulation.Combat
 
     public sealed class Battle
     {
-        const int GuardBash = 0, GuardTaunt = 1, GuardStance = 2;
-        const int PriestRevive = 0, PriestShield = 1;
-        const int WarriorCleave = 0, WarriorWhirl = 1;
         const int EnemyHealSlot = 0, EnemyAoeSlot = 1;
 
         readonly List<Combatant> heroes;
@@ -113,8 +113,8 @@ namespace AdventurerCity.Simulation.Combat
             enemy.SwingTimer = rng.Value * enemy.AttackInterval * 0.5f;
             var def = CombatData.Get(enemy.Enemy);
             if (def.AoeDamage > 0f) enemy.Cooldowns[EnemyAoeSlot] = def.AoeFirst;
-            var guard = FindHero(HeroClass.Guard);
-            if (guard != null) enemy.Threat[guard] = CombatData.GuardOpeningThreat;
+            var tank = FindRole(CombatRole.Tank);
+            if (tank != null) enemy.Threat[tank] = CombatData.GuardOpeningThreat;
             else if (FirstActive(heroes) is Combatant opener) enemy.Threat[opener] = 1f;
         }
 
@@ -137,9 +137,26 @@ namespace AdventurerCity.Simulation.Combat
             unit.SwingTimer -= dt;
             unit.Gcd -= dt;
             unit.StunTimer -= dt;
-            unit.StanceTimer -= dt;
+            unit.GuardTimer -= dt;
+            unit.EmpowerTimer -= dt;
+            unit.EvadeTimer -= dt;
+            unit.MarkTimer -= dt;
+            unit.WeakenTimer -= dt;
             for (var i = 0; i < Combatant.CooldownSlots; i++) unit.Cooldowns[i] -= dt;
             if (unit.MaxMana > 0f) unit.Mana = Math.Min(unit.MaxMana, unit.Mana + unit.ManaRegen * dt);
+
+            if (unit.HotTimer > 0f)
+            {
+                unit.HotTimer -= dt;
+                unit.Hp = Math.Min(unit.MaxHp, unit.Hp + unit.HotPerSecond * dt);
+            }
+            if (unit.DotTimer > 0f)
+            {
+                unit.DotTimer -= dt;
+                var source = unit.DotSource;
+                ApplyDamage(source, unit, unit.DotPerSecond * dt, source != null && source.Role == CombatRole.Tank ? CombatData.GuardThreatMultiplier : 1f);
+                if (!unit.Active) return;
+            }
 
             if (unit.IsCasting)
             {
@@ -151,160 +168,309 @@ namespace AdventurerCity.Simulation.Combat
         void ActHero(Combatant hero)
         {
             if (hero.IsCasting) return;
-            if (hero.Class == HeroClass.Warrior && Time < CombatData.DamageDealerDelay && FindHero(HeroClass.Guard) != null) return;
+            if (hero.Role != CombatRole.Tank && hero.Role != CombatRole.Healer && Time < CombatData.DamageDealerDelay &&
+                FindRole(CombatRole.Tank) != null)
+                return;
             if (hero.Gcd <= 0f && UseAbility(hero)) hero.Gcd = CombatData.GlobalCooldown;
             if (hero.IsCasting || hero.SwingTimer > 0f) return;
 
             var target = Focus();
             if (target == null) return;
-            Hit(hero, target, 1f, hero.MagicAttack, hero.Class == HeroClass.Guard ? CombatData.GuardThreatMultiplier : 1f);
+            Hit(hero, target, 1f, hero.MagicAttack, 1f);
             hero.SwingTimer = hero.AttackInterval;
         }
 
         bool UseAbility(Combatant hero)
         {
-            switch (hero.Class)
+            var caster = CastingEnemy();
+            if (caster != null)
             {
-                case HeroClass.Guard: return GuardAbility(hero);
-                case HeroClass.Priest: return PriestAbility(hero);
-                default: return WarriorAbility(hero);
-            }
-        }
-
-        bool GuardAbility(Combatant guard)
-        {
-            var cd = guard.Cooldowns;
-            if (cd[GuardBash] <= 0f)
-            {
-                foreach (var enemy in enemies)
+                for (var slot = 0; slot < hero.Abilities.Count; slot++)
                 {
-                    if (!enemy.Active || !enemy.IsCasting) continue;
-                    ShieldBash(guard, enemy);
+                    var def = Classes.Get(hero.Abilities[slot]);
+                    if (!def.Interrupts || !Ready(hero, slot, def)) continue;
+                    Execute(hero, slot, def, caster);
                     return true;
                 }
             }
 
-            if (cd[GuardTaunt] <= 0f)
+            for (var slot = 0; slot < hero.Abilities.Count; slot++)
             {
-                foreach (var enemy in enemies)
-                {
-                    if (!enemy.Active) continue;
-                    var target = TopThreat(enemy);
-                    if (target == null || target == guard) continue;
+                var def = Classes.Get(hero.Abilities[slot]);
+                if (!Ready(hero, slot, def)) continue;
+                var target = FindTarget(hero, def);
+                if (target == null) continue;
+                Execute(hero, slot, def, target);
+                return true;
+            }
+            return false;
+        }
+
+        static bool Ready(Combatant hero, int slot, AbilityDef def) =>
+            slot < Combatant.CooldownSlots && hero.Cooldowns[slot] <= 0f && hero.Mana >= def.Mana;
+
+        Combatant FindTarget(Combatant hero, AbilityDef def)
+        {
+            switch (def.Trigger)
+            {
+                case AbilityTrigger.EnemyCasting:
+                    return CastingEnemy();
+                case AbilityTrigger.EnemyOnAlly:
+                    foreach (var enemy in enemies)
+                    {
+                        if (!enemy.Active) continue;
+                        var target = TopThreat(enemy);
+                        if (target != null && target != hero) return enemy;
+                    }
+                    return null;
+                case AbilityTrigger.SelfHurt:
+                    return hero.HpRatio < 0.5f ? hero : null;
+                case AbilityTrigger.AllyHurt:
+                    return Wounded(0.7f, false);
+                case AbilityTrigger.AllyCritical:
+                    return Wounded(0.35f, false);
+                case AbilityTrigger.AllyNeedsHot:
+                    return Wounded(0.85f, true);
+                case AbilityTrigger.AllyDowned:
+                    foreach (var ally in heroes)
+                        if (ally.Downed)
+                            return ally;
+                    return null;
+                case AbilityTrigger.GroupHurt:
+                    var hurt = 0;
+                    foreach (var ally in heroes)
+                        if (ally.Active && ally.HpRatio < 0.75f)
+                            hurt++;
+                    return hurt >= 2 ? hero : null;
+                case AbilityTrigger.TankUnshielded:
+                    var tank = FindRole(CombatRole.Tank);
+                    return tank != null && tank.Absorb <= 0f ? tank : null;
+                case AbilityTrigger.TwoEnemies:
+                    return CountActive(enemies) >= 2 ? Focus() : null;
+                case AbilityTrigger.ThreeEnemies:
+                    return CountActive(enemies) >= 3 ? Focus() : null;
+                case AbilityTrigger.TargetUnmarked:
+                    var focus = Focus();
+                    return focus != null && focus.MarkTimer <= 0f ? focus : null;
+                case AbilityTrigger.TargetClean:
+                    var clean = Focus();
+                    if (clean != null && clean.DotTimer <= 0f) return clean;
+                    foreach (var enemy in enemies)
+                        if (enemy.Active && enemy.DotTimer <= 0f)
+                            return enemy;
+                    return null;
+                case AbilityTrigger.SelfTargeted:
+                    foreach (var enemy in enemies)
+                        if (enemy.Active && TopThreat(enemy) == hero)
+                            return hero;
+                    return null;
+                case AbilityTrigger.NotTargeted:
+                    var mark = Focus();
+                    return mark != null && TopThreat(mark) != hero ? mark : null;
+                default:
+                    return IsSelfEffect(def.Effect) ? hero : Focus();
+            }
+        }
+
+        static bool IsSelfEffect(AbilityEffect effect) =>
+            effect == AbilityEffect.SelfGuard || effect == AbilityEffect.SelfRage || effect == AbilityEffect.SelfEvade ||
+            effect == AbilityEffect.SelfEmpower || effect == AbilityEffect.PartyGuard || effect == AbilityEffect.PartyEmpower;
+
+        void Execute(Combatant hero, int slot, AbilityDef def, Combatant target)
+        {
+            hero.Mana -= def.Mana;
+            hero.Cooldowns[slot] = def.Cooldown;
+            if (def.Cast > 0f)
+            {
+                hero.Cast = CastKind.Ability;
+                hero.CastAbility = def.Id;
+                hero.CastTimer = def.Cast;
+                hero.CastTarget = target;
+                Emit(BattleEventKind.CastStart, hero, target, def.Cast, false, def.Id);
+                return;
+            }
+            Apply(hero, def, target);
+        }
+
+        void Apply(Combatant hero, AbilityDef def, Combatant target)
+        {
+            var threat = def.Threat * (hero.Role == CombatRole.Tank ? CombatData.GuardThreatMultiplier : 1f);
+            Emit(BattleEventKind.Ability, hero, target, 0f, false, def.Id);
+
+            switch (def.Effect)
+            {
+                case AbilityEffect.Strike:
+                    if (!target.Active) return;
+                    if (def.Interrupts && target.IsCasting) Interrupt(hero, target);
+                    Hit(hero, target, def.Power, def.Magic, threat);
+                    if (def.Stun > 0f && target.Active)
+                    {
+                        target.StunTimer = def.Stun;
+                        target.Cast = CastKind.None;
+                    }
+                    break;
+                case AbilityEffect.MultiStrike:
+                    for (var i = 0; i < def.Hits && target.Active; i++) Hit(hero, target, def.Power, def.Magic, threat);
+                    break;
+                case AbilityEffect.AreaStrike:
+                    foreach (var enemy in enemies.ToArray())
+                        if (enemy.Active)
+                            Hit(hero, enemy, def.Power, def.Magic, threat);
+                    break;
+                case AbilityEffect.ChainStrike:
+                    var struck = 0;
+                    if (target.Active)
+                    {
+                        Hit(hero, target, def.Power, def.Magic, threat);
+                        struck++;
+                    }
+                    foreach (var enemy in enemies.ToArray())
+                    {
+                        if (struck >= def.Hits) break;
+                        if (enemy == target || !enemy.Active) continue;
+                        Hit(hero, enemy, def.Power, def.Magic, threat);
+                        struck++;
+                    }
+                    break;
+                case AbilityEffect.RandomStrike:
+                    if (target.Active) Hit(hero, target, def.Power + def.Amount * rng.Value, def.Magic, threat);
+                    break;
+                case AbilityEffect.WeakenStrike:
+                    if (!target.Active) return;
+                    Hit(hero, target, def.Power, def.Magic, threat);
+                    target.WeakenTimer = def.Duration;
+                    break;
+                case AbilityEffect.Drain:
+                    var drained = Focus();
+                    if (drained == null) return;
+                    var dealt = Hit(hero, drained, def.Power, def.Magic, threat);
+                    if (target.IsHero && target.Active) HealUnit(hero, target, dealt * def.Amount);
+                    break;
+                case AbilityEffect.Interrupt:
+                    if (target.Active && target.IsCasting) Interrupt(hero, target);
+                    break;
+                case AbilityEffect.Taunt:
+                    if (!target.Active) return;
                     var max = 0f;
-                    foreach (var threat in enemy.Threat.Values) max = Math.Max(max, threat);
-                    enemy.Threat[guard] = max * 1.1f + 1f;
-                    cd[GuardTaunt] = 8f;
-                    Emit(BattleEventKind.Taunt, guard, enemy);
-                    Write($"{guard.Name} провоцирует {enemy.Name}");
-                    return true;
-                }
+                    foreach (var value in target.Threat.Values) max = Math.Max(max, value);
+                    target.Threat[hero] = max * 1.1f + 1f;
+                    Emit(BattleEventKind.Taunt, hero, target);
+                    Write($"{hero.Name} провоцирует {target.Name}");
+                    break;
+                case AbilityEffect.SelfGuard:
+                    hero.GuardTimer = def.Duration;
+                    hero.GuardAmount = def.Amount;
+                    Write($"{hero.Name}: {def.Name}");
+                    break;
+                case AbilityEffect.SelfRage:
+                    hero.EmpowerTimer = def.Duration;
+                    hero.EmpowerAmount = def.Amount;
+                    hero.GuardTimer = def.Duration;
+                    hero.GuardAmount = 0.2f;
+                    Write($"{hero.Name} впадает в ярость");
+                    break;
+                case AbilityEffect.SelfEvade:
+                    hero.EvadeTimer = def.Duration;
+                    break;
+                case AbilityEffect.SelfEmpower:
+                    hero.Hp = Math.Max(1f, hero.Hp - hero.MaxHp * 0.1f);
+                    hero.EmpowerTimer = def.Duration;
+                    hero.EmpowerAmount = def.Amount;
+                    break;
+                case AbilityEffect.Heal:
+                    if (target.Active) HealUnit(hero, target, rng.Spread(def.Power + hero.HealPower * def.Scaling, CombatData.DamageSpread));
+                    break;
+                case AbilityEffect.HealOverTime:
+                    if (!target.Active) return;
+                    target.HotTimer = def.Duration;
+                    target.HotPerSecond = (def.Power + hero.HealPower * def.Scaling) / def.Duration;
+                    break;
+                case AbilityEffect.GroupHeal:
+                    foreach (var ally in heroes)
+                        if (ally.Active)
+                            HealUnit(hero, ally, def.Power + hero.HealPower * def.Scaling);
+                    break;
+                case AbilityEffect.Shield:
+                    if (target.Active) target.Absorb = def.Power + hero.HealPower * def.Scaling;
+                    break;
+                case AbilityEffect.Revive:
+                    if (!target.Downed) return;
+                    target.Downed = false;
+                    target.Hp = target.MaxHp * 0.3f;
+                    target.Injured = true;
+                    Emit(BattleEventKind.Revived, hero, target);
+                    Write($"{hero.Name} поднимает {target.Name}");
+                    break;
+                case AbilityEffect.PartyGuard:
+                    foreach (var ally in heroes)
+                    {
+                        if (!ally.Active || ally.GuardTimer > 0f && ally.GuardAmount > def.Amount) continue;
+                        ally.GuardTimer = def.Duration;
+                        ally.GuardAmount = def.Amount;
+                    }
+                    break;
+                case AbilityEffect.PartyEmpower:
+                    foreach (var ally in heroes)
+                    {
+                        if (!ally.Active || ally.EmpowerTimer > 0f && ally.EmpowerAmount > def.Amount) continue;
+                        ally.EmpowerTimer = def.Duration;
+                        ally.EmpowerAmount = def.Amount;
+                    }
+                    break;
+                case AbilityEffect.Mark:
+                    if (target.Active) target.MarkTimer = def.Duration;
+                    break;
+                case AbilityEffect.DamageOverTime:
+                    if (!target.Active) return;
+                    target.DotTimer = def.Duration;
+                    target.DotPerSecond = (hero.Weapon + hero.Power) * def.Power * (1f + hero.DamageBonus);
+                    target.DotSource = hero;
+                    break;
+                case AbilityEffect.AreaStun:
+                    foreach (var enemy in enemies)
+                    {
+                        if (!enemy.Active) continue;
+                        enemy.StunTimer = def.Duration;
+                        enemy.Cast = CastKind.None;
+                    }
+                    Write($"{hero.Name}: {def.Name}");
+                    break;
             }
-
-            if (guard.HpRatio < 0.5f && cd[GuardStance] <= 0f)
-            {
-                guard.StanceTimer = 6f;
-                cd[GuardStance] = 20f;
-                Write($"{guard.Name} встаёт в оборонительную стойку");
-                return true;
-            }
-
-            if (cd[GuardBash] <= 0f)
-            {
-                var focus = Focus();
-                if (focus == null) return false;
-                ShieldBash(guard, focus);
-                return true;
-            }
-            return false;
         }
 
-        void ShieldBash(Combatant guard, Combatant target)
+        void Interrupt(Combatant source, Combatant target)
         {
-            guard.Cooldowns[GuardBash] = 6f;
-            if (target.IsCasting)
-            {
-                target.Cast = CastKind.None;
-                Emit(BattleEventKind.Interrupt, guard, target);
-                Write($"{guard.Name} прерывает {target.Name}");
-            }
-            Hit(guard, target, 0.8f, false, CombatData.ShieldBashThreatMultiplier);
+            target.Cast = CastKind.None;
+            Emit(BattleEventKind.Interrupt, source, target);
+            Write($"{source.Name} прерывает {target.Name}");
         }
 
-        bool PriestAbility(Combatant priest)
+        void HealUnit(Combatant healer, Combatant target, float amount)
         {
-            var cd = priest.Cooldowns;
-            if (cd[PriestRevive] <= 0f && priest.Mana >= 40f)
-            {
-                foreach (var hero in heroes)
-                {
-                    if (!hero.Downed) continue;
-                    priest.Mana -= 40f;
-                    cd[PriestRevive] = 30f;
-                    StartCast(priest, CastKind.Revive, 3f, hero);
-                    return true;
-                }
-            }
-
-            if (priest.Mana >= 15f)
-            {
-                Combatant wounded = null;
-                foreach (var hero in heroes)
-                    if (hero.Active && (wounded == null || hero.HpRatio < wounded.HpRatio))
-                        wounded = hero;
-                if (wounded != null && wounded.HpRatio < 0.7f)
-                {
-                    priest.Mana -= 15f;
-                    StartCast(priest, CastKind.Heal, 2f, wounded);
-                    return true;
-                }
-            }
-
-            var guard = FindHero(HeroClass.Guard);
-            if (guard != null && guard.Absorb <= 0f && cd[PriestShield] <= 0f && priest.Mana >= 10f)
-            {
-                priest.Mana -= 10f;
-                cd[PriestShield] = 10f;
-                guard.Absorb = 15f + priest.HealPower / 1.5f;
-                return true;
-            }
-            return false;
+            var healed = Math.Min(amount, target.MaxHp - target.Hp);
+            if (healed <= 0f) return;
+            target.Hp += healed;
+            AddHealThreat(healer, healed);
+            Emit(BattleEventKind.Heal, healer, target, healed);
         }
 
-        bool WarriorAbility(Combatant warrior)
+        Combatant Wounded(float below, bool withoutHot)
         {
-            var focus = Focus();
-            if (focus == null) return false;
-            var cd = warrior.Cooldowns;
-
-            if (!warrior.ChargeUsed)
+            Combatant wounded = null;
+            foreach (var ally in heroes)
             {
-                warrior.ChargeUsed = true;
-                Hit(warrior, focus, 1.2f, false, 1f);
-                if (focus.Active)
-                {
-                    focus.StunTimer = 1f;
-                    focus.Cast = CastKind.None;
-                }
-                return true;
+                if (!ally.Active || ally.HpRatio >= below || withoutHot && ally.HotTimer > 0f) continue;
+                if (wounded == null || ally.HpRatio < wounded.HpRatio) wounded = ally;
             }
+            return wounded;
+        }
 
-            if (cd[WarriorWhirl] <= 0f && CountActive(enemies) >= 3)
-            {
-                cd[WarriorWhirl] = 12f;
-                foreach (var enemy in enemies)
-                    if (enemy.Active)
-                        Hit(warrior, enemy, 0.7f, false, 1f);
-                return true;
-            }
-
-            if (cd[WarriorCleave] <= 0f)
-            {
-                cd[WarriorCleave] = 6f;
-                Hit(warrior, focus, 1.5f, false, 1f);
-                return true;
-            }
-            return false;
+        Combatant CastingEnemy()
+        {
+            foreach (var enemy in enemies)
+                if (enemy.Active && enemy.IsCasting)
+                    return enemy;
+            return null;
         }
 
         void ActEnemy(Combatant enemy)
@@ -364,26 +530,15 @@ namespace AdventurerCity.Simulation.Combat
         {
             var kind = caster.Cast;
             var target = caster.CastTarget;
+            var ability = caster.CastAbility;
             caster.Cast = CastKind.None;
             caster.CastTarget = null;
+            caster.CastAbility = Ability.None;
 
             switch (kind)
             {
-                case CastKind.Heal:
-                    if (target == null || !target.Active) return;
-                    var amount = rng.Spread(20f + caster.HealPower, CombatData.DamageSpread);
-                    var healed = Math.Min(amount, target.MaxHp - target.Hp);
-                    target.Hp += healed;
-                    AddHealThreat(caster, healed);
-                    Emit(BattleEventKind.Heal, caster, target, healed);
-                    break;
-                case CastKind.Revive:
-                    if (target == null || !target.Downed) return;
-                    target.Downed = false;
-                    target.Hp = target.MaxHp * 0.3f;
-                    target.Injured = true;
-                    Emit(BattleEventKind.Revived, caster, target);
-                    Write($"{caster.Name} поднимает {target.Name}");
+                case CastKind.Ability:
+                    if (target != null) Apply(caster, Classes.Get(ability), target);
                     break;
                 case CastKind.EnemyHeal:
                     if (target == null || !target.Active) return;
@@ -401,12 +556,13 @@ namespace AdventurerCity.Simulation.Combat
             }
         }
 
-        void Hit(Combatant attacker, Combatant defender, float multiplier, bool magic, float threatMultiplier)
+        float Hit(Combatant attacker, Combatant defender, float multiplier, bool magic, float threatMultiplier)
         {
-            if (!magic && rng.Chance(defender.DodgeChance))
+            if (attacker.IsHero && attacker.Role == CombatRole.Tank && threatMultiplier == 1f) threatMultiplier = CombatData.GuardThreatMultiplier;
+            if (!magic && rng.Chance(defender.EffectiveDodge))
             {
                 Emit(BattleEventKind.Dodge, attacker, defender);
-                return;
+                return 0f;
             }
 
             var damage = (attacker.Weapon + attacker.Power) * multiplier;
@@ -415,14 +571,17 @@ namespace AdventurerCity.Simulation.Combat
             damage = rng.Spread(damage, CombatData.DamageSpread);
             var crit = rng.Chance(attacker.CritChance);
             if (crit) damage *= CombatData.CritMultiplier;
-            ApplyDamage(attacker, defender, damage, threatMultiplier, crit);
+            damage *= 1f + attacker.DamageBonus + (attacker.EmpowerTimer > 0f ? attacker.EmpowerAmount : 0f);
+            if (attacker.WeakenTimer > 0f) damage *= 1f - Classes.WeakenPenalty;
+            return ApplyDamage(attacker, defender, damage, threatMultiplier, crit);
         }
 
-        void ApplyDamage(Combatant attacker, Combatant defender, float damage, float threatMultiplier, bool crit = false)
+        float ApplyDamage(Combatant attacker, Combatant defender, float damage, float threatMultiplier, bool crit = false)
         {
+            if (defender.MarkTimer > 0f) damage *= 1f + Classes.MarkBonus;
+            if (defender.GuardTimer > 0f) damage *= 1f - defender.GuardAmount;
             if (defender.IsHero)
             {
-                if (defender.StanceTimer > 0f) damage *= 0.6f;
                 var absorbed = Math.Min(defender.Absorb, damage);
                 defender.Absorb -= absorbed;
                 damage -= absorbed;
@@ -431,26 +590,30 @@ namespace AdventurerCity.Simulation.Combat
             defender.Hp -= damage;
             if (defender.IsHero) defender.DamageTaken += damage;
             Emit(BattleEventKind.Hit, attacker, defender, damage, crit);
-            if (attacker.IsHero && !defender.IsHero)
+            if (attacker != null && attacker.IsHero && !defender.IsHero)
                 defender.Threat[attacker] = (defender.Threat.TryGetValue(attacker, out var t) ? t : 0f) + damage * threatMultiplier;
 
-            if (defender.Hp > 0f) return;
+            if (defender.Hp > 0f) return damage;
             defender.Hp = 0f;
             defender.Cast = CastKind.None;
             if (defender.IsHero)
             {
                 defender.Downed = true;
                 defender.DownedTimer = CombatData.DownedSeconds;
+                defender.HotTimer = 0f;
+                defender.DotTimer = 0f;
                 Emit(BattleEventKind.Downed, attacker, defender);
                 Write($"{defender.Name} падает");
             }
             else
             {
                 defender.Dead = true;
+                defender.DotTimer = 0f;
                 XpPool += CombatData.XpPerEnemyLevel * defender.Level;
                 Emit(BattleEventKind.Killed, attacker, defender);
                 Write($"{defender.Name} повержен");
             }
+            return damage;
         }
 
         void AddHealThreat(Combatant healer, float healed)
@@ -475,7 +638,7 @@ namespace AdventurerCity.Simulation.Combat
             }
             if (best != null) return best;
 
-            best = FindHero(HeroClass.Guard) ?? FindHero(HeroClass.Priest) ?? FirstActive(heroes);
+            best = FindRole(CombatRole.Tank) ?? FindRole(CombatRole.Healer) ?? FirstActive(heroes);
             if (best != null) enemy.Threat[best] = 0.1f;
             return best;
         }
@@ -493,10 +656,10 @@ namespace AdventurerCity.Simulation.Combat
             return shaman ?? weakest;
         }
 
-        Combatant FindHero(HeroClass heroClass)
+        Combatant FindRole(CombatRole role)
         {
             foreach (var hero in heroes)
-                if (hero.Class == heroClass && hero.Active)
+                if (hero.Role == role && hero.Active)
                     return hero;
             return null;
         }
@@ -560,8 +723,8 @@ namespace AdventurerCity.Simulation.Combat
             }
         }
 
-        void Emit(BattleEventKind kind, Combatant source, Combatant target, float amount = 0f, bool crit = false) =>
-            Events.Add(new BattleEvent(kind, source, target, amount, crit));
+        void Emit(BattleEventKind kind, Combatant source, Combatant target, float amount = 0f, bool crit = false, Ability ability = Ability.None) =>
+            Events.Add(new BattleEvent(kind, source, target, amount, crit, ability));
 
         void Write(string text) => log?.Add($"[{Time:0.0} с] {text}");
     }
