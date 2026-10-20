@@ -148,7 +148,8 @@ namespace AdventurerCity.Simulation
                 Seed = Random(1000000000),
                 HeroIds = new List<int>(heroIds),
                 DungeonId = dungeonId,
-                Heroic = heroic
+                Heroic = heroic,
+                Potions = Stock.Take(ResourceType.Potions, heroIds.Count)
             };
             foreach (var id in heroIds)
             {
@@ -175,7 +176,7 @@ namespace AdventurerCity.Simulation
             ApplyBonds(party, record.HeroIds);
 
             var active = new ActiveExpedition { Record = record };
-            active.Run = new Expedition(party, record.Seed, Dungeons.Get(record.DungeonId), record.Heroic, active.Log);
+            active.Run = new Expedition(party, record.Seed, Dungeons.Get(record.DungeonId), record.Heroic, active.Log) { Potions = record.Potions };
             return active;
         }
 
@@ -185,9 +186,40 @@ namespace AdventurerCity.Simulation
             {
                 var active = Launch(record);
                 var steps = (int)Math.Round(record.Elapsed / CombatData.Tick);
-                for (var i = 0; i < steps && !active.Run.IsDone; i++) active.Run.Step();
+                if (record.Orders == null) record.Orders = new List<CombatOrder>();
+                var next = 0;
+                for (var i = 0; i < steps && !active.Run.IsDone; i++)
+                {
+                    while (next < record.Orders.Count && record.Orders[next].Step <= active.Run.Steps)
+                        active.Run.Apply(record.Orders[next++], out _);
+                    active.Run.Step();
+                }
+                while (next < record.Orders.Count && record.Orders[next].Step <= active.Run.Steps)
+                    active.Run.Apply(record.Orders[next++], out _);
                 expeditions.Add(active);
             }
+        }
+
+        public ActiveExpedition FindExpedition(int expeditionId)
+        {
+            foreach (var active in expeditions)
+                if (active.Record.Id == expeditionId)
+                    return active;
+            return null;
+        }
+
+        internal bool GiveOrder(int expeditionId, OrderKind kind, int target, out string error)
+        {
+            var active = FindExpedition(expeditionId);
+            if (active == null)
+            {
+                error = "Отряд уже вернулся";
+                return false;
+            }
+            var order = new CombatOrder { Step = active.Run.Steps, Kind = kind, Target = target };
+            if (!active.Run.Apply(order, out error)) return false;
+            active.Record.Orders.Add(order);
+            return true;
         }
 
         void FeedHungryHeroes()
@@ -264,6 +296,7 @@ namespace AdventurerCity.Simulation
             var extraGold = (int)Math.Round(run.Gold * greed);
             Stock.Add(run.LootType, run.Loot + extraLoot);
             Stock.Add(ResourceType.Gold, run.Gold + extraGold);
+            if (!run.Wiped) Stock.Add(ResourceType.Potions, run.Potions);
             StoreDrops(run, active.Record.HeroIds);
 
             var loot = run.LootSummary + (extraLoot + extraGold > 0 ? $" (+{greed * 100f:0}% от жадных)" : "");

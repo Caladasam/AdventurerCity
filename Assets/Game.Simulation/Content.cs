@@ -14,7 +14,9 @@ namespace AdventurerCity.Simulation
         Guild,
         Forge,
         Watchtower,
-        Temple
+        Temple,
+        Tavern,
+        Market
     }
 
     public sealed class Recipe
@@ -35,6 +37,7 @@ namespace AdventurerCity.Simulation
         public int Workers;
         public Recipe Recipe;
         public int StorageRadius;
+        public int Stage = 1;
     }
 
     public sealed class HouseLevelDef
@@ -46,6 +49,8 @@ namespace AdventurerCity.Simulation
         public bool NeedsBread;
         public int UpgradePlanks;
         public int UpgradeOre;
+        public int UpgradeGems;
+        public int Stage = 1;
     }
 
     public sealed class ContentLibrary
@@ -120,7 +125,7 @@ namespace AdventurerCity.Simulation
                 },
                 new BuildingDef
                 {
-                    Kind = BuildingKind.Forge, Name = "Кузница", Width = 3, Depth = 2,
+                    Kind = BuildingKind.Forge, Name = "Кузница", Width = 3, Depth = 2, Stage = 2,
                     Cost = Cost(R(ResourceType.Planks, 25), R(ResourceType.Logs, 15), R(ResourceType.Gold, 40)), BuildTicks = 25, Workers = 2
                 },
                 new BuildingDef
@@ -130,8 +135,19 @@ namespace AdventurerCity.Simulation
                 },
                 new BuildingDef
                 {
-                    Kind = BuildingKind.Temple, Name = "Храм", Width = 3, Depth = 3,
-                    Cost = Cost(R(ResourceType.Planks, 30), R(ResourceType.Logs, 10), R(ResourceType.Gold, 80)), BuildTicks = 30
+                    Kind = BuildingKind.Temple, Name = "Храм", Width = 3, Depth = 3, Stage = 2,
+                    Cost = Cost(R(ResourceType.Planks, 30), R(ResourceType.Logs, 10), R(ResourceType.Gold, 80)), BuildTicks = 30, Workers = 1,
+                    Recipe = new Recipe { Inputs = Cost(R(ResourceType.Grain, 4)), Outputs = Cost(R(ResourceType.Potions, 1)), CycleTicks = 30 }
+                },
+                new BuildingDef
+                {
+                    Kind = BuildingKind.Tavern, Name = "Таверна", Width = 2, Depth = 2, Stage = 2,
+                    Cost = Cost(R(ResourceType.Planks, 25), R(ResourceType.Logs, 10), R(ResourceType.Gold, 40)), BuildTicks = 20, Workers = 1
+                },
+                new BuildingDef
+                {
+                    Kind = BuildingKind.Market, Name = "Рынок", Width = 3, Depth = 2, Stage = 2,
+                    Cost = Cost(R(ResourceType.Planks, 30), R(ResourceType.Logs, 10), R(ResourceType.Gold, 60)), BuildTicks = 25, Workers = 1
                 }
             };
 
@@ -139,7 +155,8 @@ namespace AdventurerCity.Simulation
             {
                 new HouseLevelDef { Name = "Хижина", Capacity = 2, TaxPerResident = 1, UpgradePlanks = 5 },
                 new HouseLevelDef { Name = "Дом", Capacity = 4, TaxPerResident = 2, NeedsFirewood = true, UpgradePlanks = 10, UpgradeOre = 5 },
-                new HouseLevelDef { Name = "Добротный дом", Capacity = 6, TaxPerResident = 3, NeedsFirewood = true, NeedsBread = true }
+                new HouseLevelDef { Name = "Добротный дом", Capacity = 6, TaxPerResident = 3, NeedsFirewood = true, NeedsBread = true, UpgradePlanks = 20, UpgradeOre = 10, UpgradeGems = 3, Stage = 2 },
+                new HouseLevelDef { Name = "Особняк", Capacity = 8, TaxPerResident = 5, NeedsFirewood = true, NeedsBread = true, Stage = 3 }
             };
 
             return new ContentLibrary(defs, houseLevels);

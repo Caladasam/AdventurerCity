@@ -2,6 +2,22 @@ using System.Collections.Generic;
 
 namespace AdventurerCity.Simulation.Combat
 {
+    public enum OrderKind
+    {
+        Retreat = 1,
+        Focus = 2,
+        Potion = 3,
+        ClearFocus = 4
+    }
+
+    [System.Serializable]
+    public sealed class CombatOrder
+    {
+        public int Step;
+        public OrderKind Kind;
+        public int Target;
+    }
+
     public enum ExpeditionPhase
     {
         TravelOut,
@@ -16,6 +32,9 @@ namespace AdventurerCity.Simulation.Combat
         public const float RestSeconds = 10f;
         public const float RestRestore = 0.3f;
         public const float RetreatHpRatio = 0.4f;
+        public const float PotionHeal = 0.5f;
+        public const float PotionRevive = 0.3f;
+        public const float AutoPotionHpRatio = 0.2f;
 
         readonly Rng rng;
 
@@ -51,6 +70,8 @@ namespace AdventurerCity.Simulation.Combat
         public bool BossReached { get; private set; }
         public bool BossKilled { get; private set; }
         public bool IsDone => Phase == ExpeditionPhase.Done;
+        public int Steps { get; private set; }
+        public int Potions { get; set; }
 
         public string LootSummary => LootType == ResourceType.Gold || Loot == 0
             ? $"{Loot + Gold} золота"
@@ -99,6 +120,7 @@ namespace AdventurerCity.Simulation.Combat
         public void Step()
         {
             if (IsDone) return;
+            Steps++;
             Elapsed += CombatData.Tick;
             PhaseTime += CombatData.Tick;
 
@@ -112,6 +134,7 @@ namespace AdventurerCity.Simulation.Combat
                     {
                         var outcome = Battle.Step();
                         if (outcome != BattleOutcome.Ongoing) FinishBattle(outcome);
+                        else AutoPotions();
                     }
                     break;
                 case ExpeditionPhase.Rest:
@@ -125,6 +148,81 @@ namespace AdventurerCity.Simulation.Combat
                     }
                     break;
             }
+        }
+
+        void AutoPotions()
+        {
+            foreach (var hero in Party)
+                if (Potions > 0 && hero.Active && hero.HpRatio < AutoPotionHpRatio)
+                    Drink(hero);
+        }
+
+        bool Drink(Combatant hero)
+        {
+            if (Potions <= 0 || hero.Dead) return false;
+            float healed;
+            if (hero.Downed)
+            {
+                hero.Downed = false;
+                hero.Hp = hero.MaxHp * PotionRevive;
+                healed = hero.Hp;
+            }
+            else
+            {
+                healed = System.Math.Min(hero.MaxHp - hero.Hp, hero.MaxHp * PotionHeal);
+                if (healed <= 0f) return false;
+                hero.Hp += healed;
+            }
+            Potions--;
+            if (Battle != null) Battle.DrinkPotion(hero, healed);
+            else Write($"{hero.Name} пьёт зелье");
+            return true;
+        }
+
+        public bool Apply(CombatOrder order, out string error)
+        {
+            error = null;
+            if (IsDone || Phase == ExpeditionPhase.TravelBack)
+            {
+                error = "Отряд уже возвращается";
+                return false;
+            }
+            switch (order.Kind)
+            {
+                case OrderKind.Retreat:
+                    if (Battle != null) Battle.RetreatOrdered = true;
+                    else
+                    {
+                        Retreated = true;
+                        Write("Отряд поворачивает назад по приказу");
+                        StartReturn();
+                    }
+                    return true;
+                case OrderKind.Focus:
+                    if (Battle == null || order.Target < 0 || order.Target >= Battle.Enemies.Count || !Battle.Enemies[order.Target].Active)
+                    {
+                        error = "Цели нет";
+                        return false;
+                    }
+                    Battle.ForcedFocus = Battle.Enemies[order.Target];
+                    return true;
+                case OrderKind.ClearFocus:
+                    if (Battle != null) Battle.ForcedFocus = null;
+                    return true;
+                case OrderKind.Potion:
+                    if (Potions <= 0)
+                    {
+                        error = "Зелий не осталось";
+                        return false;
+                    }
+                    if (order.Target < 0 || order.Target >= Party.Count || !Drink(Party[order.Target]))
+                    {
+                        error = "Зелье сейчас не поможет";
+                        return false;
+                    }
+                    return true;
+            }
+            return false;
         }
 
         void EnterRoom()

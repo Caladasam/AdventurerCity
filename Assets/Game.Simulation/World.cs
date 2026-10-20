@@ -50,6 +50,8 @@ namespace AdventurerCity.Simulation
             EnsurePersonalities();
             EnsureItems();
             EnsureSites();
+            EnsureStage();
+            EnsureTown();
             RestoreExpeditions();
             RestoreRaids();
         }
@@ -136,6 +138,11 @@ namespace AdventurerCity.Simulation
         public bool CanPlace(BuildingKind kind, int x, int y, bool rotated, out string reason)
         {
             var def = Content.Get(kind);
+            if (def.Stage > State.Stage)
+            {
+                reason = $"Откроется на этапе «{Stages.Get(def.Stage).Name}»";
+                return false;
+            }
             if (!Grid.IsFree(Footprint(kind, x, y, rotated)))
             {
                 reason = "Место занято";
@@ -199,6 +206,7 @@ namespace AdventurerCity.Simulation
                 DailyHeroes();
                 DailyTraining();
                 DailyRegion();
+                DailyTown();
                 WarnShortages();
                 workforceDirty = true;
             }

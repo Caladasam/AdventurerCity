@@ -20,6 +20,7 @@ namespace AdventurerCity.Simulation
         public int Distance;
         public int DungeonId;
         public bool StartsDiscovered;
+        public int Stage = 1;
         public float TensionPerDay = Region.TensionPerDay;
         public EnemyKind[] RaidEnemies = new EnemyKind[0];
     }
@@ -75,7 +76,7 @@ namespace AdventurerCity.Simulation
             new SiteDef
             {
                 Id = 2, Name = Dungeons.Get(Dungeons.CatacombsId).Name, Kind = SiteKind.Dungeon, MapX = 0.62f, MapY = -0.45f,
-                Distance = Dungeons.Get(Dungeons.CatacombsId).Distance, DungeonId = Dungeons.CatacombsId,
+                Distance = Dungeons.Get(Dungeons.CatacombsId).Distance, DungeonId = Dungeons.CatacombsId, Stage = 2,
                 RaidEnemies = new[] { EnemyKind.Skeleton, EnemyKind.Skeleton, EnemyKind.Ghoul }
             },
             new SiteDef
@@ -87,7 +88,7 @@ namespace AdventurerCity.Simulation
             new SiteDef
             {
                 Id = 4, Name = Dungeons.Get(Dungeons.BanditCampId).Name, Kind = SiteKind.Lair, MapX = 0.72f, MapY = 0.6f,
-                Distance = Dungeons.Get(Dungeons.BanditCampId).Distance, DungeonId = Dungeons.BanditCampId, TensionPerDay = 4f,
+                Distance = Dungeons.Get(Dungeons.BanditCampId).Distance, DungeonId = Dungeons.BanditCampId, TensionPerDay = 4f, Stage = 2,
                 RaidEnemies = new[] { EnemyKind.Bandit, EnemyKind.Bandit, EnemyKind.Archer }
             }
         };

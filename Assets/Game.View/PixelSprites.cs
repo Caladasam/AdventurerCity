@@ -626,11 +626,45 @@ namespace AdventurerCity.View
                 "ksggsk",
                 ".knnk.",
                 ".kkkk."
+            },
+            ["Merchant"] = new[]
+            {
+                "..kkkk..",
+                ".kyyyyk.",
+                ".kszzsk.",
+                ".kssssk.",
+                "kkppppkk",
+                "ksppppsk",
+                "kkppppkk",
+                ".kPPPPk.",
+                ".kPkkPk.",
+                ".kNk.kNk",
+                ".kkk.kkk"
             }
         };
 
         public static readonly Dictionary<string, string[]> Icons = new Dictionary<string, string[]>
         {
+            ["mug"] = new[]
+            {
+                ".wwwww...",
+                "kwwwwwk..",
+                "kyyyyykk.",
+                "kyYyyyk.k",
+                "kyyyYyk.k",
+                "kyyyyykk.",
+                "kkkkkkk.."
+            },
+            ["scales"] = new[]
+            {
+                "....k....",
+                "kkkkkkkkk",
+                "k...k...k",
+                "yk..k..ky",
+                "yyy.k.yyy",
+                "....k....",
+                "..kkkkk.."
+            },
             ["anvil"] = new[]
             {
                 "..........",

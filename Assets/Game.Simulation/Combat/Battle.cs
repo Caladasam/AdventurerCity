@@ -80,6 +80,8 @@ namespace AdventurerCity.Simulation.Combat
         public int XpPool { get; private set; }
         public IReadOnlyList<Combatant> Heroes => heroes;
         public IReadOnlyList<Combatant> Enemies => enemies;
+        public Combatant ForcedFocus { get; set; }
+        public bool RetreatOrdered { get; set; }
 
         float GroupScale => heroes.Count > Dungeons.StandardParty ? Dungeons.StandardParty / (float)heroes.Count : 1f;
 
@@ -669,6 +671,7 @@ namespace AdventurerCity.Simulation.Combat
 
         Combatant Focus()
         {
+            if (ForcedFocus != null && ForcedFocus.Active) return ForcedFocus;
             Combatant shaman = null;
             Combatant weakest = null;
             foreach (var enemy in enemies)
@@ -726,6 +729,13 @@ namespace AdventurerCity.Simulation.Combat
                 return BattleOutcome.Lost;
             }
 
+            if (RetreatOrdered)
+            {
+                StandUpFallen();
+                Write("Отряд отступает по приказу");
+                return BattleOutcome.Retreated;
+            }
+
             var fallen = heroes.Count - standing;
             var retreatAt = heroes.Count <= 3 ? heroes.Count - 1 : heroes.Count / 2 + 1;
             if ((heroes.Count > 1 && fallen >= retreatAt) || Time >= CombatData.MaxBattleSeconds)
@@ -735,6 +745,12 @@ namespace AdventurerCity.Simulation.Combat
                 return BattleOutcome.Retreated;
             }
             return BattleOutcome.Ongoing;
+        }
+
+        public void DrinkPotion(Combatant hero, float amount)
+        {
+            Emit(BattleEventKind.Heal, hero, hero, amount);
+            Write($"{hero.Name} пьёт зелье (+{amount:0})");
         }
 
         void StandUpFallen()

@@ -61,6 +61,12 @@ namespace AdventurerCity.Simulation
                 reason = "Место уже разведано";
                 return false;
             }
+            var def = Region.Get(siteId);
+            if (def != null && def.Stage > State.Stage)
+            {
+                reason = $"Разведка откроется на этапе «{Stages.Get(def.Stage).Name}»";
+                return false;
+            }
             if (FindGuild() == null)
             {
                 reason = "Нужна гильдия";
@@ -127,7 +133,7 @@ namespace AdventurerCity.Simulation
                 var def = Region.Get(site.Id);
                 if (def == null || def.Kind == SiteKind.Dungeon && !site.Discovered) continue;
                 if (RaidFrom(site.Id) != null) continue;
-                site.Tension = Math.Min(Region.TensionMax, site.Tension + def.TensionPerDay);
+                site.Tension = Math.Min(Region.TensionMax, site.Tension + def.TensionPerDay * CurrentStage.TensionScale);
                 if (site.Tension >= Region.TensionMax) StartRaid(site, def);
             }
         }
@@ -141,6 +147,7 @@ namespace AdventurerCity.Simulation
             {
                 site.TimesCleared++;
                 site.Tension = 0f;
+                State.Fame += run.Heroic ? 2 : 1;
                 if (site.TimesCleared == 1) Report($"«{run.Dungeon.Name}»: открыт героический уровень сложности");
             }
             else if (!run.Wiped)

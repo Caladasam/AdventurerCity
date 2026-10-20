@@ -266,4 +266,65 @@ namespace AdventurerCity.Simulation
 
         public override bool Execute(World world, out string error) => world.Demolish(x, y, out error);
     }
+
+    public sealed class AdvanceStageCommand : Command
+    {
+        public override bool Execute(World world, out string error) => world.AdvanceStage(out error);
+    }
+
+    public sealed class HireVisitorCommand : Command
+    {
+        readonly int heroId;
+
+        public HireVisitorCommand(int heroId)
+        {
+            this.heroId = heroId;
+        }
+
+        public override bool Execute(World world, out string error) => world.HireVisitor(heroId, out error);
+    }
+
+    public sealed class TradeCommand : Command
+    {
+        readonly ResourceType type;
+        readonly int amount;
+        readonly bool buy;
+
+        public TradeCommand(ResourceType type, int amount, bool buy)
+        {
+            this.type = type;
+            this.amount = amount;
+            this.buy = buy;
+        }
+
+        public override bool Execute(World world, out string error) => world.Trade(type, amount, buy, out error);
+    }
+
+    public sealed class SellItemCommand : Command
+    {
+        readonly int itemId;
+
+        public SellItemCommand(int itemId)
+        {
+            this.itemId = itemId;
+        }
+
+        public override bool Execute(World world, out string error) => world.SellItem(itemId, out error);
+    }
+
+    public sealed class CombatOrderCommand : Command
+    {
+        readonly int expeditionId;
+        readonly Combat.OrderKind kind;
+        readonly int target;
+
+        public CombatOrderCommand(int expeditionId, Combat.OrderKind kind, int target = -1)
+        {
+            this.expeditionId = expeditionId;
+            this.kind = kind;
+            this.target = target;
+        }
+
+        public override bool Execute(World world, out string error) => world.GiveOrder(expeditionId, kind, target, out error);
+    }
 }

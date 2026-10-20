@@ -33,6 +33,8 @@ namespace AdventurerCity.View
         Vector2 stashScroll;
         GUIStyle leftButton;
         bool selectedHeroic;
+        bool stageOpen;
+        Vector2 marketScroll;
 
         public void Init(GameRunner owner, BuildTool buildTool)
         {
@@ -104,6 +106,7 @@ namespace AdventurerCity.View
             DrawRaidWarning(world);
             if (economyOpen) DrawEconomy(world);
             if (mapOpen) DrawMap(world);
+            if (stageOpen) DrawStage(world);
             DrawHover();
         }
 
@@ -124,11 +127,14 @@ namespace AdventurerCity.View
             {
                 var type = (ResourceType)i;
                 GUILayout.Label($"{ResourceInfo.Name(type)}: {Short(world.Stock[type])} {Signed(resourceFlows[i].Net, true)}",
-                    richLabel, GUILayout.Width(98f));
+                    richLabel, GUILayout.Width(92f));
             }
             var minutes = Mathf.FloorToInt(world.DayProgress * 24f * 60f);
             GUILayout.Label($"День {world.Day}, {minutes / 60:00}:{minutes % 60:00}", GUILayout.Width(105f));
             GUILayout.Label($"Жители: {world.Population} (раб. {world.EmployedWorkers}/{world.Adults})", GUILayout.Width(150f));
+            GUI.backgroundColor = stageOpen ? ActiveTool : world.CanAdvanceStage(out _) ? new Color(0.6f, 1f, 0.6f) : Color.white;
+            if (GUILayout.Button($"{world.CurrentStage.Name} · слава {world.Fame}", GUILayout.Width(160f))) stageOpen = !stageOpen;
+            GUI.backgroundColor = Color.white;
             GUILayout.FlexibleSpace();
             for (var i = 0; i < runner.Speeds.Count; i++)
             {
@@ -155,8 +161,11 @@ namespace AdventurerCity.View
             foreach (var def in world.Content.Buildings)
             {
                 var active = tool.Mode == ToolMode.Build && tool.Kind == def.Kind;
-                if (ToolButton($"{def.Name}\n{ResourceInfo.Format(def.Cost)}", active))
+                var unlocked = world.IsUnlocked(def.Kind);
+                GUI.enabled = unlocked;
+                if (ToolButton(unlocked ? $"{def.Name}\n{ResourceInfo.Format(def.Cost)}" : $"{def.Name}\nэтап «{Stages.Get(def.Stage).Name}»", active))
                     tool.SelectBuilding(def.Kind);
+                GUI.enabled = true;
                 DrawSwatch(GUILayoutUtility.GetLastRect(), Palette.Building(def.Kind));
             }
             if (ToolButton("Снос", tool.Mode == ToolMode.Demolish))
@@ -240,6 +249,16 @@ namespace AdventurerCity.View
                 DrawTemple(world, building);
                 return;
             }
+            if (building.Kind == BuildingKind.Tavern && building.IsComplete)
+            {
+                DrawTavern(world, building);
+                return;
+            }
+            if (building.Kind == BuildingKind.Market && building.IsComplete)
+            {
+                DrawMarket(world, building);
+                return;
+            }
 
             var def = world.Def(building);
             var lines = new List<string> { def.Name };
@@ -255,9 +274,11 @@ namespace AdventurerCity.View
                 lines.Add("Еда: " + (building.FoodMet ? "есть" : "не хватает") + (level.NeedsBread ? " (нужен хлеб)" : ""));
                 if (level.NeedsFirewood) lines.Add("Дрова: " + (building.FirewoodMet ? "есть" : "не хватает"));
                 lines.Add($"Налог: {level.TaxPerResident} {ResourceInfo.Name(ResourceType.Gold)} с жильца в день");
-                if (building.Level < world.Content.HouseLevels.Count)
+                if (building.Level < world.MaxHouseLevel())
                     lines.Add($"Улучшение: полный дом 3 сытых дня, {level.UpgradePlanks} досок" +
-                              (level.UpgradeOre > 0 ? $", {level.UpgradeOre} руды" : ""));
+                              (level.UpgradeOre > 0 ? $", {level.UpgradeOre} руды" : "") + (level.UpgradeGems > 0 ? $", {level.UpgradeGems} самоцв." : ""));
+                else if (building.Level < world.Content.HouseLevels.Count)
+                    lines.Add($"Следующий уровень откроется на этапе «{Stages.Get(world.Content.HouseLevels[building.Level].Stage).Name}»");
                 var food = level.NeedsBread ? "хлеба" : "зерна (хлеба, если зерна нет)";
                 lines.Add($"Потребляет: {building.Residents * SimConstants.FoodPerResident} {food} в день" +
                           (level.NeedsFirewood ? $", {SimConstants.FirewoodPerHouse} {ResourceInfo.Name(ResourceType.Logs).ToLower()} на дрова" : ""));
@@ -480,7 +501,8 @@ namespace AdventurerCity.View
             var canSend = world.CanSendExpedition(partyIds, selectedDungeon, selectedHeroic, out var reason);
             GUI.enabled = canSend;
             if (GUILayout.Button($"Отправить: «{target.Name}»{(selectedHeroic ? " (героич.)" : "")} — {partyIds.Count} гер., " +
-                                 $"{World.Provisions(partyIds.Count, selectedDungeon)} хлеба"))
+                                 $"{World.Provisions(partyIds.Count, selectedDungeon)} хлеба" +
+                                 (world.Stock[ResourceType.Potions] > 0 ? $", {Mathf.Min(partyIds.Count, world.Stock[ResourceType.Potions])} зел." : "")))
             {
                 world.Enqueue(new SendExpeditionCommand(partyIds, selectedDungeon, selectedHeroic));
                 partySelection.Clear();
@@ -752,17 +774,144 @@ namespace AdventurerCity.View
                 GUILayout.Label($"<color=#BBBBBB>День {chronicle[i].Day}:</color> {chronicle[i].Text}", smallLabel);
         }
 
+        void DrawStage(World world)
+        {
+            const float width = 560f;
+            var current = world.CurrentStage;
+            var next = world.Stage < Stages.Max ? Stages.Get(world.Stage + 1) : null;
+            var requirements = next != null ? world.StageRequirements(next) : new List<(string Text, bool Met)>();
+            var rect = Panel(new Rect((Screen.width - width) * 0.5f, TopBarHeight + 8f, width, 150f + requirements.Count * 22f + (next != null ? 90f : 0f)));
+            GUILayout.BeginArea(new Rect(rect.x + 12f, rect.y + 8f, rect.width - 24f, rect.height - 14f));
+            GUILayout.BeginHorizontal();
+            GUILayout.Label($"<b>Этап {current.Number}/{Stages.Max}: {current.Name}</b>", richLabel);
+            GUILayout.FlexibleSpace();
+            if (GUILayout.Button("Закрыть", GUILayout.Width(80f))) stageOpen = false;
+            GUILayout.EndHorizontal();
+            GUILayout.Label($"Слава гильдии: {world.Fame} (зачистка +1, героическая +2, отбитый набег +1). Чем выше слава, тем чаще и опытнее авантюристы в таверне.", smallLabel);
+            if (next == null)
+            {
+                GUILayout.Label("Поселение достигло высшего этапа.", smallLabel);
+                GUILayout.EndArea();
+                return;
+            }
+            GUILayout.Space(6f);
+            GUILayout.Label($"<b>Следующий этап: {next.Name}</b>", richLabel);
+            foreach (var (text, met) in requirements)
+                GUILayout.Label(met ? $"<color=#8BE28B>✓ {text}</color>" : $"<color=#FF8A80>✗ {text}</color>", richLabel);
+            GUILayout.Label($"<color=#BBBBBB>Откроется: {next.Unlocks}</color>", smallLabel);
+            GUI.enabled = world.CanAdvanceStage(out _);
+            if (GUILayout.Button($"Объявить поселение: {next.Name}", GUILayout.Height(28f))) world.Enqueue(new AdvanceStageCommand());
+            GUI.enabled = true;
+            GUILayout.EndArea();
+        }
+
+        void DrawTavern(World world, Building tavern)
+        {
+            const float width = 540f;
+            var visitors = world.Visitors;
+            var rect = Panel(new Rect(10f, TopBarHeight + 8f, width, 130f + Mathf.Max(1, visitors.Count) * 80f));
+            GUILayout.BeginArea(new Rect(rect.x + 10f, rect.y + 6f, rect.width - 20f, rect.height - 10f));
+            GUILayout.Label("<b>Таверна</b>", richLabel);
+            GUILayout.Label($"Сюда заходят странствующие авантюристы: у них свой класс, уровень (до {world.CurrentStage.VisitorMaxLevel}-го на этом этапе) и иногда своё снаряжение. " +
+                            $"Каждый ждёт {Town.VisitorStayDays} дн. Слава гильдии {world.Fame}: чем выше, тем чаще и опытнее гости. Нужен трактирщик и свободное место в доме.", smallLabel);
+            if (world.FindWorking(BuildingKind.Tavern) == null)
+                GUILayout.Label("<color=#FF8A80>Таверна не работает: нужна дорога к складу и трактирщик</color>", smallLabel);
+            if (visitors.Count == 0) GUILayout.Label("<color=#AAAAAA>Пока никого. Загляните через пару дней.</color>", smallLabel);
+            for (var i = visitors.Count - 1; i >= 0; i--)
+            {
+                var visitor = visitors[i];
+                var hero = visitor.Hero;
+                var traits = new List<string>();
+                foreach (var trait in Traits.Of(hero)) traits.Add(Traits.Get(trait).Name);
+                var gear = visitor.HasGear ? "\nСнаряжение: " + ItemTitle(visitor.Gear) : "";
+                GUILayout.BeginHorizontal();
+                GUILayout.Label($"<b>{CitizenInfo.FullName(hero)}</b> — {CombatData.Get(hero.Class).Name}, {hero.HeroLevel} ур. <color=#999999>(ещё {visitor.DaysLeft} дн.)</color>\n" +
+                                $"<color=#BBBBBB>{string.Join(", ", traits)}</color>{gear}", smallLabel, GUILayout.Width(370f));
+                var can = world.CanHireVisitor(hero.Id, out var reason);
+                GUI.enabled = can;
+                if (GUILayout.Button($"Нанять\n{visitor.Price} зол.", toolStyle, GUILayout.Width(120f), GUILayout.Height(40f)))
+                    world.Enqueue(new HireVisitorCommand(hero.Id));
+                GUI.enabled = true;
+                GUILayout.EndHorizontal();
+                if (!can && reason != null) GUILayout.Label($"<color=#AAAAAA>{reason}</color>", smallLabel);
+            }
+            GUILayout.EndArea();
+        }
+
+        void DrawMarket(World world, Building market)
+        {
+            const float width = 620f;
+            var caravan = world.Caravan;
+            var stash = world.Stash();
+            var height = caravan.Present ? 150f + Town.Tradable.Length * 26f + 230f : 120f;
+            var rect = Panel(new Rect(10f, TopBarHeight + 8f, width, height));
+            GUILayout.BeginArea(new Rect(rect.x + 10f, rect.y + 6f, rect.width - 20f, rect.height - 10f));
+            GUILayout.Label("<b>Рынок</b>", richLabel);
+            GUILayout.Label($"Раз в {Town.CaravanIntervalMin}–{Town.CaravanIntervalMin + Town.CaravanIntervalSpread - 1} дн. приходит караван на {Town.CaravanStayDays} дн.: " +
+                            "покупает излишки, продаёт недостающее и берёт добычу со склада гильдии. Цены и объёмы у каждого каравана свои.", smallLabel);
+            if (world.FindWorking(BuildingKind.Market) == null)
+                GUILayout.Label("<color=#FF8A80>Рынок не работает: нужна дорога к складу и торговец</color>", smallLabel);
+            if (!caravan.Present)
+            {
+                GUILayout.Label(caravan.NextDay > 0 ? $"Каравана нет. Ждём примерно к {caravan.NextDay}-му дню." : "Каравана нет.", smallLabel);
+                GUILayout.EndArea();
+                return;
+            }
+
+            GUILayout.Label($"<color=#8BE28B>Караван на рынке ещё {caravan.DaysLeft} дн.</color>", richLabel);
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("<b>Товар</b>", richLabel, GUILayout.Width(90f));
+            GUILayout.Label("<b>Склад</b>", richLabel, GUILayout.Width(50f));
+            GUILayout.Label("<b>Продать каравану</b>", richLabel, GUILayout.Width(205f));
+            GUILayout.Label("<b>Купить у каравана</b>", richLabel);
+            GUILayout.EndHorizontal();
+            foreach (var type in Town.Tradable)
+            {
+                var i = (int)type;
+                var lot = Town.Lot(type);
+                GUILayout.BeginHorizontal();
+                GUILayout.Label(ResourceInfo.Name(type), GUILayout.Width(90f));
+                GUILayout.Label(world.Stock[type].ToString(), GUILayout.Width(50f));
+                GUI.enabled = world.CanTrade(type, lot, false, out _);
+                if (GUILayout.Button($"{lot} за {caravan.Sell[i] * lot} зол. (берёт ещё {caravan.Demand[i]})", GUILayout.Width(200f)))
+                    world.Enqueue(new TradeCommand(type, lot, false));
+                GUI.enabled = world.CanTrade(type, lot, true, out _);
+                if (GUILayout.Button($"{lot} за {caravan.Buy[i] * lot} зол. (есть {caravan.Supply[i]})", GUILayout.Width(200f)))
+                    world.Enqueue(new TradeCommand(type, lot, true));
+                GUI.enabled = true;
+                GUILayout.EndHorizontal();
+            }
+
+            GUILayout.Space(6f);
+            GUILayout.Label($"<b>Добыча на складе гильдии</b> ({stash.Count})", richLabel);
+            marketScroll = GUILayout.BeginScrollView(marketScroll, GUILayout.Height(190f));
+            if (stash.Count == 0) GUILayout.Label("<color=#AAAAAA>Склад гильдии пуст</color>", smallLabel);
+            foreach (var item in stash)
+            {
+                GUILayout.BeginHorizontal();
+                GUILayout.Label(ItemTitle(item), smallLabel, GUILayout.Width(450f));
+                if (GUILayout.Button($"Продать: {Town.ItemPrice(item)}", GUILayout.Width(110f))) world.Enqueue(new SellItemCommand(item.Id));
+                GUILayout.EndHorizontal();
+            }
+            GUILayout.EndScrollView();
+            GUILayout.EndArea();
+        }
+
         void DrawTemple(World world, Building temple)
         {
             const float width = 520f;
             var fallen = world.Fallen;
-            var rect = Panel(new Rect(10f, TopBarHeight + 8f, width, 120f + Mathf.Max(1, fallen.Count) * 46f));
+            var rect = Panel(new Rect(10f, TopBarHeight + 8f, width, 170f + Mathf.Max(1, fallen.Count) * 46f));
             GUILayout.BeginArea(new Rect(rect.x + 10f, rect.y + 6f, rect.width - 20f, rect.height - 10f));
             GUILayout.Label("<b>Храм и мемориал павших</b>", richLabel);
             GUILayout.Label($"Пока храм работает, ранения героев заживают на день быстрее. Павшего героя можно вернуть: " +
                             $"{Traits.ResurrectGoldPerLevel} золота и {Traits.ResurrectOrePerLevel} руды за уровень. Воскрешённый теряет уровень, " +
                             $"{Traits.ResurrectInjuryDays} дн. восстанавливается и получает черту «Видевший смерть».", smallLabel);
             if (!temple.IsConnected) GUILayout.Label("<color=#FF8A80>Нет дороги к складу — храм не работает</color>", smallLabel);
+            var brew = world.Def(temple).Recipe;
+            GUILayout.Label($"Жрец варит зелья: {ResourceInfo.Format(brew.Inputs)} → {ResourceInfo.Format(brew.Outputs)} за {brew.CycleTicks} с " +
+                            $"(жрецов {temple.Workers}/{world.Def(temple).Workers}). Запас зелий: {world.Stock[ResourceType.Potions]}. " +
+                            "Отряд берёт по зелью на героя; в бою герой пьёт его сам при 20% здоровья, а при просмотре боя — по вашему приказу.", smallLabel);
             if (fallen.Count == 0) GUILayout.Label("<color=#AAAAAA>Мемориал пуст. Пусть так и остаётся.</color>", smallLabel);
             for (var i = fallen.Count - 1; i >= 0; i--)
             {

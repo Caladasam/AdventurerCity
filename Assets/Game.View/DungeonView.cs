@@ -546,6 +546,7 @@ namespace AdventurerCity.View
                 panelStyle = new GUIStyle(GUI.skin.box) { normal = { background = background } };
             }
 
+            var run = active?.Run;
             foreach (var actor in actors.Values)
             {
                 var unit = actor.Unit;
@@ -562,6 +563,9 @@ namespace AdventurerCity.View
 
                 var name = unit.IsHero ? $"{unit.Name.Split(' ')[0]} · {CombatData.Get(unit.Class).Name}" : unit.Name;
                 GUI.Label(new Rect(x - 90f, y - 26f, 180f, 18f), name, label);
+
+                if (run != null && run.Battle != null && !unit.Dead)
+                    DrawOrderButton(run, unit, x, y);
 
                 if (unit.IsCasting)
                 {
@@ -589,7 +593,6 @@ namespace AdventurerCity.View
                     $"<size=34><color={(won ? "#9CFF9C" : "#FF7A6E")}><b>{lingerText}</b></color></size>", label);
                 return;
             }
-            var run = active?.Run;
             var header = new Rect(Screen.width * 0.5f - 260f, 40f, 520f, 64f);
             GUI.Box(header, GUIContent.none, panelStyle);
             var title = run != null
@@ -603,9 +606,50 @@ namespace AdventurerCity.View
             if (GUI.Button(new Rect(header.x + header.width * 0.5f - 90f, header.y + 44f, 180f, 18f), "Вернуться в город (Esc)"))
                 StopWatching();
 
+            if (run != null) DrawOrders(active);
+
             if (run != null && run.Battle == null)
                 GUI.Label(new Rect(0f, Screen.height * 0.5f - 60f, Screen.width, 30f),
                     $"<size=20><color=#CCCCCC>{(run.Phase == ExpeditionPhase.Rest ? "Привал" : "В пути")}</color></size>", label);
+        }
+
+        void DrawOrderButton(Expedition run, Combatant unit, float x, float y)
+        {
+            var id = WatchedExpeditionId;
+            if (unit.IsHero)
+            {
+                if (run.Potions <= 0 || !unit.Downed && unit.HpRatio > 0.9f) return;
+                var index = run.Party.IndexOf(unit);
+                if (GUI.Button(new Rect(x - 32f, y - 46f, 64f, 18f), unit.Downed ? "Поднять" : "Зелье"))
+                    runner.Sim.Enqueue(new CombatOrderCommand(id, OrderKind.Potion, index));
+                return;
+            }
+            var enemies = run.Battle.Enemies;
+            var focused = run.Battle.ForcedFocus == unit;
+            if (focused)
+            {
+                GUI.Label(new Rect(x - 90f, y - 44f, 180f, 18f), "<color=#FFD54F><b>▼ ЦЕЛЬ ▼</b></color>", label);
+                return;
+            }
+            for (var i = 0; i < enemies.Count; i++)
+                if (enemies[i] == unit && unit.Active && GUI.Button(new Rect(x - 28f, y - 46f, 56f, 18f), "Цель"))
+                    runner.Sim.Enqueue(new CombatOrderCommand(id, OrderKind.Focus, i));
+        }
+
+        void DrawOrders(ActiveExpedition active)
+        {
+            var run = active.Run;
+            var panel = new Rect(Screen.width * 0.5f - 240f, Screen.height - 110f, 480f, 40f);
+            GUI.Box(panel, GUIContent.none, panelStyle);
+            GUI.Label(new Rect(panel.x + 10f, panel.y + 10f, 150f, 20f), $"Зелий: {run.Potions}", label);
+            var returning = run.Phase == ExpeditionPhase.TravelBack || run.IsDone;
+            GUI.enabled = run.Battle != null && run.Battle.ForcedFocus != null;
+            if (GUI.Button(new Rect(panel.x + 160f, panel.y + 8f, 140f, 24f), "Снять цель"))
+                runner.Sim.Enqueue(new CombatOrderCommand(WatchedExpeditionId, OrderKind.ClearFocus));
+            GUI.enabled = !returning && !(run.Battle != null && run.Battle.RetreatOrdered);
+            if (GUI.Button(new Rect(panel.x + 310f, panel.y + 8f, 160f, 24f), "Отступить"))
+                runner.Sim.Enqueue(new CombatOrderCommand(WatchedExpeditionId, OrderKind.Retreat));
+            GUI.enabled = true;
         }
 
         static void DrawBar(Rect rect, float ratio, Color color)

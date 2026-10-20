@@ -174,7 +174,11 @@ namespace AdventurerCity.Simulation
 
                 activeRaids.RemoveAt(r);
                 State.Raids.Remove(active.Record);
-                if (outcome == BattleOutcome.Won) Report($"{active.Title} — отбит! Защитников: {active.Defenders.Count}");
+                if (outcome == BattleOutcome.Won)
+                {
+                    Report($"{active.Title} — отбит! Защитников: {active.Defenders.Count}");
+                    State.Fame++;
+                }
                 else Report($"{active.Title} — защитники не выстояли");
                 ApplyDefenseResults(active.Defenders, active.Record.DefenderIds, outcome == BattleOutcome.Won ? active.Battle.XpPool : 0,
                     outcome == BattleOutcome.Won, active.Title);

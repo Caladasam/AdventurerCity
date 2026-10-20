@@ -121,13 +121,15 @@ namespace AdventurerCity.View
                 case BuildingKind.Watchtower: return 30;
                 case BuildingKind.Guild: return 16;
                 case BuildingKind.Temple: return 18;
+                case BuildingKind.Tavern: return 14;
+                case BuildingKind.Market: return 8;
                 case BuildingKind.Storehouse: return 12;
                 default: return 10;
             }
         }
 
         public static bool HasChimney(BuildingKind kind, int level) =>
-            kind == BuildingKind.Bakery || kind == BuildingKind.Forge || kind == BuildingKind.House && level >= 2;
+            kind == BuildingKind.Bakery || kind == BuildingKind.Forge || kind == BuildingKind.Tavern || kind == BuildingKind.House && level >= 2;
 
         public static Sprite Building(BuildingKind kind, int width, int depth, int level, Color roofColor)
         {
@@ -215,6 +217,15 @@ namespace AdventurerCity.View
                         break;
                     case BuildingKind.Bakery:
                         c.Stamp(PixelSprites.Icons["bread"], 2, 1);
+                        break;
+                    case BuildingKind.Tavern:
+                        c.Stamp(PixelSprites.Icons["mug"], 2, wall - 8);
+                        break;
+                    case BuildingKind.Market:
+                        for (var x = 0; x < w; x++)
+                            if ((x / 4) % 2 == 0) c.Fill(x, h - 4, 1, 4, new Color32(236, 228, 210, 255));
+                        c.Stamp(PixelSprites.Icons["scales"], w / 2 - 4, h / 2 - 3);
+                        c.Stamp(PixelSprites.Icons["crates"], 1, 0);
                         break;
                     case BuildingKind.Forge:
                         c.Stamp(PixelSprites.Icons["furnace"], 3, 1);

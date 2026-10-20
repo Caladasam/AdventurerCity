@@ -21,6 +21,7 @@ namespace AdventurerCity.View
             public bool LightAtDay;
             public ParticleSystem Smoke;
             public ParticleSystem Sparks;
+            public SpriteRenderer Merchant;
             public string SpriteKey;
         }
 
@@ -210,6 +211,7 @@ namespace AdventurerCity.View
                     view.Light.intensity = lit ? view.LightBase * (view.LightAtDay ? 0.35f + 0.65f * night : night) : 0f;
                 }
                 SetEmission(view.Smoke, working ? (building.Kind == BuildingKind.House ? 1.5f + 2f * night : 4f) : 0f);
+                if (building.Kind == BuildingKind.Market && building.IsComplete) UpdateMerchant(world, view, rect, order, working);
                 SetEmission(view.Sparks, working ? 1f : 0f);
             }
         }
@@ -232,6 +234,8 @@ namespace AdventurerCity.View
                 case BuildingKind.Storehouse:
                 case BuildingKind.Watchtower:
                 case BuildingKind.Temple:
+                case BuildingKind.Tavern:
+                case BuildingKind.Market:
                     view.Light = Effects.PointLight("Windows", view.Root, new Color(1f, 0.78f, 0.45f), 1.6f + rect.Width * 0.6f, 1.1f);
                     view.LightBase = 1.1f;
                     break;
@@ -255,6 +259,22 @@ namespace AdventurerCity.View
                 view.Sparks = Effects.Sparks(view.Root, order + 6);
                 view.Sparks.transform.localPosition = center + new Vector3(0f, 0.1f, 0f);
             }
+        }
+
+        static void UpdateMerchant(World world, BuildingView view, CellRect rect, int order, bool working)
+        {
+            if (view.Merchant == null)
+            {
+                view.Merchant = PixelArt.Create("Merchant", view.Root, PixelArt.Character("Merchant"));
+                view.Merchant.transform.localPosition = new Vector3(rect.Width * 0.5f + 0.6f, -0.15f, 0f);
+            }
+            var present = working && world.Caravan.Present;
+            view.Merchant.enabled = present;
+            if (!present) return;
+            var local = view.Merchant.transform.localPosition;
+            local.y = -0.15f + Mathf.Abs(Mathf.Sin(Time.time * 2.5f)) * 0.05f;
+            view.Merchant.transform.localPosition = local;
+            view.Merchant.sortingOrder = order + 4;
         }
 
         static void SetEmission(ParticleSystem ps, float rate)

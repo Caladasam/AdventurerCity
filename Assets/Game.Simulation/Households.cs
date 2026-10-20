@@ -95,7 +95,7 @@ namespace AdventurerCity.Simulation
         static void TryUpgrade(World world, Building house)
         {
             var levels = world.Content.HouseLevels;
-            if (house.Level >= levels.Count || house.SatisfiedDays < SimConstants.DaysToUpgrade) return;
+            if (house.Level >= world.MaxHouseLevel() || house.SatisfiedDays < SimConstants.DaysToUpgrade) return;
 
             var current = levels[house.Level - 1];
             var next = levels[house.Level];
@@ -103,11 +103,13 @@ namespace AdventurerCity.Simulation
             if (house.Residents < current.Capacity) return;
             if (!stock.Has(ResourceType.Planks, current.UpgradePlanks)) return;
             if (!stock.Has(ResourceType.Ore, current.UpgradeOre)) return;
+            if (!stock.Has(ResourceType.Gems, current.UpgradeGems)) return;
             if (next.NeedsFirewood && !stock.Has(ResourceType.Logs, SimConstants.FirewoodPerHouse)) return;
             if (next.NeedsBread && !stock.Has(ResourceType.Bread, house.Residents * SimConstants.FoodPerResident)) return;
 
             stock.Take(ResourceType.Planks, current.UpgradePlanks);
             stock.Take(ResourceType.Ore, current.UpgradeOre);
+            stock.Take(ResourceType.Gems, current.UpgradeGems);
             house.Level++;
             house.SatisfiedDays = 0;
             world.Report("Дом улучшен: " + next.Name);

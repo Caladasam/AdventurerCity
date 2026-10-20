@@ -62,6 +62,10 @@ namespace AdventurerCity.Simulation
         public List<Item> Items = new List<Item>();
         public int NextItemId = 1;
         public int ItemsVersion;
+        public int Stage;
+        public int Fame;
+        public List<Visitor> Visitors = new List<Visitor>();
+        public CaravanRecord Caravan = new CaravanRecord();
         public int NextExpeditionId = 1;
     }
 
@@ -84,6 +88,8 @@ namespace AdventurerCity.Simulation
         public float Elapsed;
         public int DungeonId = Combat.Dungeons.MineId;
         public bool Heroic;
+        public int Potions;
+        public List<Combat.CombatOrder> Orders = new List<Combat.CombatOrder>();
     }
 
     public readonly struct SimEvent
