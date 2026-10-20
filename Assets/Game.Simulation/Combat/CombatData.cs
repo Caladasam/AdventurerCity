@@ -23,7 +23,12 @@ namespace AdventurerCity.Simulation.Combat
         Skeleton,
         Ghoul,
         BoneMage,
-        CryptKeeper
+        CryptKeeper,
+        Wolf,
+        PackLeader,
+        Bandit,
+        Archer,
+        Chieftain
     }
 
     public readonly struct Stats
@@ -155,6 +160,20 @@ namespace AdventurerCity.Simulation.Combat
                 Kind = EnemyKind.CryptKeeper, Name = "Хранитель склепа", Level = 4, Hp = 2200, Armor = 25, Damage = 40, AttackInterval = 2.6f,
                 AoeName = "Проклятие", AoeDamage = 45f, AoeInterval = 14f, AoeCast = 2.5f, AoeFirst = 6f,
                 SummonKind = EnemyKind.Skeleton, SummonCount = 2
+            },
+            new EnemyDef { Kind = EnemyKind.Wolf, Name = "Волк", Level = 1, Hp = 70, Armor = 0, Damage = 10, AttackInterval = 1.4f },
+            new EnemyDef
+            {
+                Kind = EnemyKind.PackLeader, Name = "Вожак стаи", Level = 2, Hp = 700, Armor = 5, Damage = 22, AttackInterval = 1.8f,
+                SummonKind = EnemyKind.Wolf, SummonCount = 2
+            },
+            new EnemyDef { Kind = EnemyKind.Bandit, Name = "Разбойник", Level = 2, Hp = 130, Armor = 10, Damage = 13, AttackInterval = 1.8f },
+            new EnemyDef { Kind = EnemyKind.Archer, Name = "Стрелок", Level = 2, Hp = 90, Armor = 0, Damage = 16, AttackInterval = 2.2f },
+            new EnemyDef
+            {
+                Kind = EnemyKind.Chieftain, Name = "Атаман", Level = 3, Hp = 1100, Armor = 15, Damage = 30, AttackInterval = 2.2f,
+                AoeName = "Залп", AoeDamage = 30f, AoeInterval = 12f, AoeCast = 2f, AoeFirst = 6f,
+                SummonKind = EnemyKind.Bandit, SummonCount = 2
             }
         };
 

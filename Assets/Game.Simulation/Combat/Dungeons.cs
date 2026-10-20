@@ -41,6 +41,8 @@ namespace AdventurerCity.Simulation.Combat
     {
         public const int MineId = 1;
         public const int CatacombsId = 2;
+        public const int WolfDenId = 3;
+        public const int BanditCampId = 4;
         public const float HeroicScale = 1.5f;
         public const int HeroicLootMultiplier = 2;
 
@@ -78,6 +80,35 @@ namespace AdventurerCity.Simulation.Combat
                 {
                     Name = "Усыпальница", Kind = RoomKind.Boss, Enemies = new[] { EnemyKind.CryptKeeper },
                     LootMin = 8, LootMax = 8, GoldMin = 200, GoldMax = 200
+                }
+            },
+            new DungeonDef
+            {
+                Id = WolfDenId, Name = "Волчье логово", LootType = ResourceType.Gold, Distance = 1, RoomsBeforeBoss = 2, MinCombatRooms = 2,
+                Pool = new[]
+                {
+                    Combat("Волчья тропа", 0, 0, 10, 20, EnemyKind.Wolf, EnemyKind.Wolf, EnemyKind.Wolf),
+                    Combat("Лёжка", 0, 0, 10, 20, EnemyKind.Wolf, EnemyKind.Wolf)
+                },
+                Boss = new RoomTemplate
+                {
+                    Name = "Логово вожака", Kind = RoomKind.Boss, Enemies = new[] { EnemyKind.PackLeader },
+                    GoldMin = 60, GoldMax = 60
+                }
+            },
+            new DungeonDef
+            {
+                Id = BanditCampId, Name = "Лагерь разбойников", LootType = ResourceType.Bread, Distance = 2, RoomsBeforeBoss = 3, MinCombatRooms = 2,
+                Pool = new[]
+                {
+                    Combat("Дозор", 0, 0, 15, 25, EnemyKind.Bandit, EnemyKind.Archer),
+                    Combat("Костёр", 0, 0, 20, 30, EnemyKind.Bandit, EnemyKind.Bandit, EnemyKind.Archer),
+                    new RoomTemplate { Name = "Склад награбленного", Kind = RoomKind.Stash, LootMin = 10, LootMax = 20, GoldMin = 20, GoldMax = 40 }
+                },
+                Boss = new RoomTemplate
+                {
+                    Name = "Шатёр атамана", Kind = RoomKind.Boss, Enemies = new[] { EnemyKind.Chieftain },
+                    LootMin = 20, LootMax = 20, GoldMin = 150, GoldMax = 150
                 }
             }
         };

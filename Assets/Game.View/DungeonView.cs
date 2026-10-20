@@ -144,9 +144,7 @@ namespace AdventurerCity.View
             if (floorDungeonId != run.Dungeon.Id)
             {
                 floorDungeonId = run.Dungeon.Id;
-                floorRenderer.sharedMaterial = Materials.Get(run.Dungeon.Id == Dungeons.CatacombsId
-                    ? new Color(0.16f, 0.19f, 0.23f)
-                    : new Color(0.22f, 0.2f, 0.19f));
+                floorRenderer.sharedMaterial = Materials.Get(FloorColor(run.Dungeon.Id));
             }
             if (run.Battle != shownBattle)
             {
@@ -419,7 +417,7 @@ namespace AdventurerCity.View
             GUI.Box(header, GUIContent.none, panelStyle);
             GUI.Label(new Rect(header.x, header.y + 6f, header.width, 22f), $"<b>{run.Dungeon.Name}{(run.Heroic ? " (героич.)" : "")}</b> · {Hud.PhaseText(run)}", label);
             GUI.Label(new Rect(header.x, header.y + 26f, header.width, 18f),
-                $"<color=#BBBBBB>{run.Elapsed:0} с в походе · добыча: {run.Loot} {ResourceInfo.Name(run.LootType).ToLower()}, {run.Gold} зол.</color>", label);
+                $"<color=#BBBBBB>{run.Elapsed:0} с в походе · добыча: {run.LootSummary}</color>", label);
             if (GUI.Button(new Rect(header.x + header.width * 0.5f - 90f, header.y + 44f, 180f, 18f), "Вернуться в город (Esc)"))
                 StopWatching();
 
@@ -462,6 +460,11 @@ namespace AdventurerCity.View
                 case EnemyKind.Ghoul: return new Vector3(1.1f, 1.4f, 1.1f);
                 case EnemyKind.BoneMage: return new Vector3(0.75f, 1.8f, 0.75f);
                 case EnemyKind.CryptKeeper: return new Vector3(2.2f, 3.6f, 2.2f);
+                case EnemyKind.Wolf: return new Vector3(0.6f, 0.7f, 1.2f);
+                case EnemyKind.PackLeader: return new Vector3(1.1f, 1.3f, 2.2f);
+                case EnemyKind.Bandit: return new Vector3(0.9f, 1.5f, 0.9f);
+                case EnemyKind.Archer: return new Vector3(0.75f, 1.5f, 0.75f);
+                case EnemyKind.Chieftain: return new Vector3(1.6f, 2.6f, 1.6f);
                 default: return new Vector3(2.4f, 3.2f, 2.4f);
             }
         }
@@ -487,7 +490,23 @@ namespace AdventurerCity.View
                 case EnemyKind.Ghoul: return new Color(0.45f, 0.55f, 0.48f);
                 case EnemyKind.BoneMage: return new Color(0.35f, 0.75f, 0.7f);
                 case EnemyKind.CryptKeeper: return new Color(0.25f, 0.3f, 0.42f);
+                case EnemyKind.Wolf: return new Color(0.5f, 0.5f, 0.52f);
+                case EnemyKind.PackLeader: return new Color(0.26f, 0.26f, 0.3f);
+                case EnemyKind.Bandit: return new Color(0.6f, 0.42f, 0.25f);
+                case EnemyKind.Archer: return new Color(0.4f, 0.5f, 0.28f);
+                case EnemyKind.Chieftain: return new Color(0.55f, 0.15f, 0.12f);
                 default: return new Color(0.3f, 0.24f, 0.2f);
+            }
+        }
+
+        static Color FloorColor(int dungeonId)
+        {
+            switch (dungeonId)
+            {
+                case Dungeons.CatacombsId: return new Color(0.16f, 0.19f, 0.23f);
+                case Dungeons.WolfDenId: return new Color(0.2f, 0.26f, 0.17f);
+                case Dungeons.BanditCampId: return new Color(0.3f, 0.25f, 0.18f);
+                default: return new Color(0.22f, 0.2f, 0.19f);
             }
         }
     }

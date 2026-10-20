@@ -125,8 +125,10 @@ namespace AdventurerCity.Simulation
             foreach (var site in State.Sites)
             {
                 var def = Region.Get(site.Id);
-                if (def == null || def.Kind != SiteKind.Dungeon || !site.Discovered) continue;
-                site.Tension = Math.Min(Region.TensionMax, site.Tension + Region.TensionPerDay);
+                if (def == null || def.Kind == SiteKind.Dungeon && !site.Discovered) continue;
+                if (RaidFrom(site.Id) != null) continue;
+                site.Tension = Math.Min(Region.TensionMax, site.Tension + def.TensionPerDay);
+                if (site.Tension >= Region.TensionMax) StartRaid(site, def);
             }
         }
 

@@ -49,6 +49,10 @@ namespace AdventurerCity.Simulation.Combat
         public bool BossReached { get; private set; }
         public bool BossKilled { get; private set; }
         public bool IsDone => Phase == ExpeditionPhase.Done;
+
+        public string LootSummary => LootType == ResourceType.Gold || Loot == 0
+            ? $"{Loot + Gold} золота"
+            : $"{Loot} {ResourceInfo.Name(LootType).ToLower()}, {Gold} золота";
         public float EnemyScale => Heroic ? Dungeons.HeroicScale : 1f;
 
         public int Deaths

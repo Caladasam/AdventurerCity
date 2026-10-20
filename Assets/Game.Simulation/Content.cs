@@ -12,7 +12,8 @@ namespace AdventurerCity.Simulation
         Sawmill,
         Bakery,
         Guild,
-        Forge
+        Forge,
+        Watchtower
     }
 
     public sealed class Recipe
@@ -120,6 +121,11 @@ namespace AdventurerCity.Simulation
                 {
                     Kind = BuildingKind.Forge, Name = "Кузница", Width = 3, Depth = 2,
                     Cost = Cost(R(ResourceType.Planks, 25), R(ResourceType.Logs, 15), R(ResourceType.Gold, 40)), BuildTicks = 25, Workers = 2
+                },
+                new BuildingDef
+                {
+                    Kind = BuildingKind.Watchtower, Name = "Сторожевая башня", Width = 2, Depth = 2,
+                    Cost = Cost(R(ResourceType.Planks, 15), R(ResourceType.Logs, 10), R(ResourceType.Gold, 20)), BuildTicks = 15, Workers = 2
                 }
             };
 

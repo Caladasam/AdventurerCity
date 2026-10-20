@@ -237,13 +237,24 @@ namespace AdventurerCity.Simulation
             }
         }
 
+        internal void GrantHeroXp(ref Citizen hero, int xp)
+        {
+            hero.HeroXp += xp;
+            while (hero.HeroLevel < CombatData.MaxLevel && hero.HeroXp >= XpToNextLevel(hero.HeroLevel))
+            {
+                hero.HeroXp -= XpToNextLevel(hero.HeroLevel);
+                hero.HeroLevel++;
+                Report($"{CitizenInfo.FullName(hero)} достигает {hero.HeroLevel}-го уровня");
+            }
+        }
+
         void CompleteExpedition(ActiveExpedition active)
         {
             var run = active.Run;
             Stock.Add(run.LootType, run.Loot);
             Stock.Add(ResourceType.Gold, run.Gold);
 
-            var loot = $"{run.Loot} {ResourceInfo.Name(run.LootType).ToLower()}, {run.Gold} золота";
+            var loot = run.LootSummary;
             if (run.Cleared) Report($"«{run.Dungeon.Name}» зачищено! Добыча: {loot}");
             else if (run.Wiped) Report($"Отряд погиб: «{run.Dungeon.Name}», добыча потеряна");
             else Report($"Отряд отступил: «{run.Dungeon.Name}». Добыча: {loot}");
@@ -272,13 +283,7 @@ namespace AdventurerCity.Simulation
                     Report($"{CitizenInfo.FullName(hero)} ранен(а) и {SimConstants.InjuryDays} дня восстанавливается");
                 }
 
-                hero.HeroXp += fighter.XpGained;
-                while (hero.HeroLevel < CombatData.MaxLevel && hero.HeroXp >= XpToNextLevel(hero.HeroLevel))
-                {
-                    hero.HeroXp -= XpToNextLevel(hero.HeroLevel);
-                    hero.HeroLevel++;
-                    Report($"{CitizenInfo.FullName(hero)} достигает {hero.HeroLevel}-го уровня");
-                }
+                GrantHeroXp(ref hero, fighter.XpGained);
                 citizens[index] = hero;
             }
         }

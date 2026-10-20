@@ -45,6 +45,7 @@ namespace AdventurerCity.Simulation
             AssignWorkers();
             if (state.Sites == null) state.Sites = new List<SiteState>();
             if (state.Scouts == null) state.Scouts = new List<ScoutRecord>();
+            if (state.Raids == null) state.Raids = new List<RaidRecord>();
             EnsureSites();
             RestoreExpeditions();
         }
@@ -186,6 +187,7 @@ namespace AdventurerCity.Simulation
             TickForge();
             TickScouts();
             TickExpeditions();
+            TickRaids();
             if (State.Tick % SimConstants.TicksPerDay == 0)
             {
                 Households.DailyUpdate(this);

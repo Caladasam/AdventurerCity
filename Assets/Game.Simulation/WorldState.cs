@@ -54,6 +54,7 @@ namespace AdventurerCity.Simulation
         public List<ForgeOrder> ForgeOrders = new List<ForgeOrder>();
         public List<SiteState> Sites = new List<SiteState>();
         public List<ScoutRecord> Scouts = new List<ScoutRecord>();
+        public List<RaidRecord> Raids = new List<RaidRecord>();
         public int NextExpeditionId = 1;
     }
 
