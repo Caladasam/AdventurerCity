@@ -23,7 +23,8 @@ namespace AdventurerCity.View
             public SpriteRenderer Shadow;
             public Vector3 Home;
             public Vector2 Size;
-            public Color BaseColor;
+            public Color BaseColor = Color.white;
+            public Color Tint;
             public Vector3 LungeDirection;
             public float LungeTime = -1f;
             public float FlashTime = -1f;
@@ -241,13 +242,13 @@ namespace AdventurerCity.View
         void Spawn(Combatant unit, Vector3 home)
         {
             var size3 = unit.IsHero ? new Vector3(0.9f, 1.6f, 0.9f) : EnemySize(unit.Enemy);
-            var beast = !unit.IsHero && size3.z > size3.y;
-            var size = new Vector2(Mathf.Max(size3.x, size3.z), size3.y);
             var root = new GameObject(unit.Name).transform;
             root.SetParent(arenaRoot, false);
-            var body = PixelArt.Create("Body", root, PixelArt.Figure(unit.IsHero, beast));
+            var body = PixelArt.Create("Body", root, PixelArt.Character(unit.IsHero ? unit.Class.ToString() : unit.Enemy.ToString()));
             var spriteSize = body.sprite.bounds.size;
-            body.transform.localScale = new Vector3(size.x / spriteSize.x * (unit.IsHero ? 1f : -1f), size.y / spriteSize.y, 1f);
+            var scale = size3.y / spriteSize.y;
+            body.transform.localScale = new Vector3(scale * (unit.IsHero ? 1f : -1f), scale, 1f);
+            var size = new Vector2(spriteSize.x * scale, size3.y);
             var shadow = PixelArt.Create("Shadow", root, PixelArt.Dot());
             shadow.color = new Color(0f, 0f, 0f, 0.45f);
             shadow.transform.localScale = new Vector3(size.x * 1.3f, size.x * 0.45f, 1f);
@@ -259,7 +260,7 @@ namespace AdventurerCity.View
                 Shadow = shadow,
                 Home = home,
                 Size = size,
-                BaseColor = unit.IsHero ? HeroColor(unit.Class) : EnemyColor(unit.Enemy)
+                Tint = unit.IsHero ? HeroColor(unit.Class) : EnemyColor(unit.Enemy)
             };
         }
 
@@ -325,7 +326,7 @@ namespace AdventurerCity.View
                     case BattleEventKind.Ability:
                         if (Classes.Get(e.Ability).Cast <= 0f && e.Ability != Ability.Revive)
                         {
-                            Emit(source, Color.Lerp(source != null ? source.BaseColor : Color.white, Color.white, 0.5f), 6);
+                            Emit(source, Color.Lerp(source != null ? source.Tint : Color.white, Color.white, 0.4f), 6);
                             AddText(source, Classes.Get(e.Ability).Name, new Color(0.75f, 0.85f, 1f), 13);
                         }
                         break;
@@ -337,7 +338,7 @@ namespace AdventurerCity.View
                         AddText(target, "Упал!", new Color(1f, 0.4f, 0.3f), 18);
                         break;
                     case BattleEventKind.Killed:
-                        Emit(target, target != null ? target.BaseColor : Color.white, 20);
+                        Emit(target, target != null ? target.Tint : Color.white, 20);
                         hitStop = Mathf.Max(hitStop, 0.05f);
                         break;
                     case BattleEventKind.Died:
@@ -414,7 +415,7 @@ namespace AdventurerCity.View
                 }
 
                 var color = actor.BaseColor;
-                if (unit.IsCasting) color = Color.Lerp(color, Color.white, 0.25f + 0.25f * Mathf.Sin(Time.time * 12f));
+                if (unit.IsCasting) color = Color.Lerp(color, new Color(1f, 0.85f, 0.45f), 0.25f + 0.25f * Mathf.Sin(Time.time * 12f));
                 if (actor.FlashTime >= 0f)
                 {
                     actor.FlashTime += dt;

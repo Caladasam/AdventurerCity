@@ -138,6 +138,8 @@ namespace AdventurerCity.View
                 var h = depth * PixelsPerUnit + wall;
                 var c = new Canvas(w, h);
                 var roof = (Color32)roofColor;
+                if (kind == BuildingKind.House)
+                    roof = level == 1 ? new Color32(196, 160, 84, 255) : level == 2 ? roof : new Color32(96, 108, 140, 255);
 
                 if (kind == BuildingKind.Farm)
                 {
@@ -149,17 +151,21 @@ namespace AdventurerCity.View
                     }
                     c.Fill(1, h - 9, 6, 8, new Color32(150, 92, 56, 255));
                     c.Fill(1, h - 3, 6, 2, new Color32(120, 70, 44, 255));
+                    for (var x = 10; x + 5 < w; x += 9)
+                    for (var y = 3; y + 4 < h - 2; y += 8)
+                        c.Stamp(PixelSprites.Icons["wheat"], x, y);
+                    c.Stamp(PixelSprites.Icons["scarecrow"], w - 9, h / 2 - 2);
                     c.Border(0, 0, w, h, Mul(roof, 0.45f));
                     return c.ToSprite(new Vector2(0f, 0f), false);
                 }
 
-                var wallColor = kind == BuildingKind.Forge || kind == BuildingKind.Watchtower || kind == BuildingKind.Storehouse
-                    ? new Color32(150, 146, 140, 255)
-                    : new Color32(214, 190, 150, 255);
+                var stone = kind == BuildingKind.Forge || kind == BuildingKind.Watchtower || kind == BuildingKind.Storehouse ||
+                            kind == BuildingKind.House && level >= 3;
+                var wallColor = stone ? new Color32(150, 146, 140, 255) : new Color32(214, 190, 150, 255);
                 for (var y = 0; y < wall; y++)
                 for (var x = 0; x < w; x++)
                 {
-                    var plank = kind == BuildingKind.Forge || kind == BuildingKind.Watchtower || kind == BuildingKind.Storehouse
+                    var plank = stone
                         ? (x / 4 + y / 3) % 2 == 0 ? 0.95f : 0.85f
                         : x % 5 == 0 ? 0.8f : 1f;
                     c.Set(x, y, Mul(wallColor, plank));
@@ -182,17 +188,37 @@ namespace AdventurerCity.View
                     c.Set(x, y, ridge == 0 ? Mul(roof, 0.65f) : Mul(roof, tile * slope));
                 }
 
-                if (kind == BuildingKind.Guild)
+                switch (kind)
                 {
-                    c.Fill(w / 2 - 1, h - 4, 2, 4, Outline);
-                    c.Fill(w / 2 + 1, h - 8, 7, 5, new Color32(232, 196, 72, 255));
+                    case BuildingKind.Guild:
+                        c.Stamp(PixelSprites.Icons["banner"], w / 2 - 3, h - 9);
+                        break;
+                    case BuildingKind.Storehouse:
+                        c.Stamp(PixelSprites.Icons["crates"], 2, 0);
+                        break;
+                    case BuildingKind.Watchtower:
+                        for (var x = 0; x < w; x += 4) c.Fill(x, h - 3, 2, 3, Outline);
+                        c.Stamp(PixelSprites.Icons["flag"], w - 7, h - 8);
+                        break;
+                    case BuildingKind.Woodcutter:
+                        c.Stamp(PixelSprites.Icons["logs"], 1, 0);
+                        break;
+                    case BuildingKind.Sawmill:
+                        c.Stamp(PixelSprites.Icons["saw"], 3, 1);
+                        c.Stamp(PixelSprites.Icons["logs"], w - 13, 0);
+                        break;
+                    case BuildingKind.Bakery:
+                        c.Stamp(PixelSprites.Icons["bread"], 2, 1);
+                        break;
+                    case BuildingKind.Forge:
+                        c.Stamp(PixelSprites.Icons["furnace"], 3, 1);
+                        c.Stamp(PixelSprites.Icons["anvil"], w - 12, 0);
+                        break;
+                    case BuildingKind.House when level >= 3:
+                        for (var x = 4; x + 4 < w; x += 12)
+                            if (Mathf.Abs(x + 2 - w / 2) >= door) c.Fill(x, wall - 3, 4, 2, new Color32(250, 214, 120, 255));
+                        break;
                 }
-                if (kind == BuildingKind.Storehouse)
-                    for (var x = 3; x + 6 < w; x += 9)
-                        c.Fill(x, 1, 6, 5, new Color32(170, 120, 70, 255));
-                if (kind == BuildingKind.Watchtower)
-                    for (var x = 0; x < w; x += 4)
-                        c.Fill(x, h - 3, 2, 3, Outline);
                 if (HasChimney(kind, level))
                 {
                     var cx = w - 7;
@@ -220,40 +246,11 @@ namespace AdventurerCity.View
             return c.ToSprite(new Vector2(0f, 0f), false);
         });
 
-        public static Sprite Figure(bool hero, bool beast) => Cached($"fig{hero}{beast}", () =>
+        public static Sprite Character(string name) => Cached("ch" + name, () =>
         {
-            if (beast)
-            {
-                var b = new Canvas(20, 12);
-                b.Fill(3, 4, 13, 6, new Color32(255, 255, 255, 255));
-                b.Fill(14, 6, 5, 5, new Color32(255, 255, 255, 255));
-                b.Fill(4, 0, 2, 4, new Color32(220, 220, 220, 255));
-                b.Fill(13, 0, 2, 4, new Color32(220, 220, 220, 255));
-                b.Fill(0, 7, 3, 2, new Color32(220, 220, 220, 255));
-                b.Set(17, 8, new Color32(200, 40, 40, 255));
-                b.Outline(Outline);
-                return b.ToSprite(new Vector2(0.5f, 0f), false);
-            }
-
-            var c = new Canvas(12, 18);
-            c.Fill(4, 0, 2, 4, new Color32(200, 200, 200, 255));
-            c.Fill(7, 0, 2, 4, new Color32(200, 200, 200, 255));
-            c.Fill(2, 4, 8, 8, new Color32(255, 255, 255, 255));
-            c.Fill(1, 6, 1, 5, new Color32(230, 230, 230, 255));
-            c.Fill(10, 6, 1, 5, new Color32(230, 230, 230, 255));
-            if (hero)
-            {
-                c.Fill(3, 12, 6, 5, new Color32(240, 200, 160, 255));
-                c.Set(4, 14, Outline);
-                c.Set(7, 14, Outline);
-            }
-            else
-            {
-                c.Fill(3, 12, 6, 5, new Color32(210, 210, 210, 255));
-                c.Set(4, 14, new Color32(220, 40, 40, 255));
-                c.Set(7, 14, new Color32(220, 40, 40, 255));
-            }
-            c.Outline(Outline);
+            var rows = PixelSprites.Figures[name];
+            var c = new Canvas(rows[0].Length, rows.Length);
+            c.Stamp(rows, 0, 0);
             return c.ToSprite(new Vector2(0.5f, 0f), false);
         });
 
@@ -302,6 +299,18 @@ namespace AdventurerCity.View
             }
 
             public void Line(int x0, int y, int w, Color32 color) => Fill(x0, y, w, 1, color);
+
+            public void Stamp(string[] rows, int x0, int y0)
+            {
+                for (var r = 0; r < rows.Length; r++)
+                {
+                    var row = rows[r];
+                    var y = y0 + rows.Length - 1 - r;
+                    for (var i = 0; i < row.Length; i++)
+                        if (PixelSprites.Palette.TryGetValue(row[i], out var color))
+                            Set(x0 + i, y, color);
+                }
+            }
 
             public void Border(int x0, int y0, int w, int h, Color32 color)
             {
