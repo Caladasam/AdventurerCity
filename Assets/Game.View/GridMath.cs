@@ -41,6 +41,9 @@ namespace AdventurerCity.View
                 case BuildingKind.Temple: return new Color(0.92f, 0.86f, 0.62f);
                 case BuildingKind.Tavern: return new Color(0.62f, 0.30f, 0.18f);
                 case BuildingKind.Market: return new Color(0.22f, 0.55f, 0.52f);
+                case BuildingKind.TownHall: return new Color(0.80f, 0.62f, 0.22f);
+                case BuildingKind.Barracks: return new Color(0.50f, 0.20f, 0.20f);
+                case BuildingKind.TrainingYard: return new Color(0.62f, 0.52f, 0.36f);
                 default: return Color.magenta;
             }
         }

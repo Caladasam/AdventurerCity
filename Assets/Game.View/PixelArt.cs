@@ -123,6 +123,9 @@ namespace AdventurerCity.View
                 case BuildingKind.Temple: return 18;
                 case BuildingKind.Tavern: return 14;
                 case BuildingKind.Market: return 8;
+                case BuildingKind.TownHall: return 26;
+                case BuildingKind.Barracks: return 14;
+                case BuildingKind.TrainingYard: return 4;
                 case BuildingKind.Storehouse: return 12;
                 default: return 10;
             }
@@ -163,6 +166,7 @@ namespace AdventurerCity.View
                 }
 
                 var stone = kind == BuildingKind.Forge || kind == BuildingKind.Watchtower || kind == BuildingKind.Storehouse || kind == BuildingKind.Temple ||
+                            kind == BuildingKind.TownHall || kind == BuildingKind.Barracks ||
                             kind == BuildingKind.House && level >= 3;
                 var wallColor = stone ? new Color32(150, 146, 140, 255) : new Color32(214, 190, 150, 255);
                 for (var y = 0; y < wall; y++)
@@ -220,6 +224,25 @@ namespace AdventurerCity.View
                         break;
                     case BuildingKind.Tavern:
                         c.Stamp(PixelSprites.Icons["mug"], 2, wall - 8);
+                        break;
+                    case BuildingKind.TownHall:
+                        c.Stamp(PixelSprites.Icons["hall"], w / 2 - 4, wall - 7);
+                        c.Stamp(PixelSprites.Icons["flag"], w / 2 - 3, h - 8);
+                        c.Stamp(PixelSprites.Icons["window"], 3, wall - 14);
+                        c.Stamp(PixelSprites.Icons["window"], w - 8, wall - 14);
+                        break;
+                    case BuildingKind.Barracks:
+                        for (var x = 0; x < w; x += 4) c.Fill(x, h - 3, 2, 3, Outline);
+                        c.Stamp(PixelSprites.Icons["swords"], w / 2 - 3, wall - 7);
+                        break;
+                    case BuildingKind.TrainingYard:
+                        for (var y = wall; y < h; y++)
+                        for (var x = 0; x < w; x++)
+                            c.Set(x, y, Mul(new Color32(176, 150, 104, 255), 0.85f + 0.15f * Hash(x, y, 3)));
+                        c.Border(0, 0, w, h, new Color32(110, 80, 50, 255));
+                        c.Stamp(PixelSprites.Icons["dummy"], 5, h / 2 - 2);
+                        c.Stamp(PixelSprites.Icons["dummy"], w - 12, h / 2 + 2);
+                        c.Stamp(PixelSprites.Icons["swords"], w / 2 - 3, h / 2 - 5);
                         break;
                     case BuildingKind.Market:
                         for (var x = 0; x < w; x++)

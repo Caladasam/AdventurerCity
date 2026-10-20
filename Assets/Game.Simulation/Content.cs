@@ -16,7 +16,10 @@ namespace AdventurerCity.Simulation
         Watchtower,
         Temple,
         Tavern,
-        Market
+        Market,
+        TownHall,
+        Barracks,
+        TrainingYard
     }
 
     public sealed class Recipe
@@ -149,6 +152,21 @@ namespace AdventurerCity.Simulation
                 {
                     Kind = BuildingKind.Market, Name = "Рынок", Width = 3, Depth = 2, Stage = 2, Upkeep = 2,
                     Cost = Cost(R(ResourceType.Planks, 30), R(ResourceType.Logs, 10), R(ResourceType.Gold, 60)), BuildTicks = 25, Workers = 1
+                },
+                new BuildingDef
+                {
+                    Kind = BuildingKind.TownHall, Name = "Ратуша", Width = 3, Depth = 3, Stage = 3,
+                    Cost = Cost(R(ResourceType.Gold, 2000), R(ResourceType.Planks, 120), R(ResourceType.Ore, 50), R(ResourceType.Gems, 20)), BuildTicks = 60
+                },
+                new BuildingDef
+                {
+                    Kind = BuildingKind.Barracks, Name = "Казармы", Width = 3, Depth = 2, Stage = 3, Upkeep = 4,
+                    Cost = Cost(R(ResourceType.Gold, 800), R(ResourceType.Planks, 60), R(ResourceType.Ore, 30)), BuildTicks = 40, Workers = 4
+                },
+                new BuildingDef
+                {
+                    Kind = BuildingKind.TrainingYard, Name = "Тренировочный двор", Width = 3, Depth = 3, Stage = 3, Upkeep = 2,
+                    Cost = Cost(R(ResourceType.Gold, 600), R(ResourceType.Planks, 80)), BuildTicks = 30, Workers = 1
                 }
             };
 

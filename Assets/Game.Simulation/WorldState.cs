@@ -64,6 +64,7 @@ namespace AdventurerCity.Simulation
         public int ItemsVersion;
         public int Stage;
         public int Fame;
+        public int VictoryDay;
         public List<Visitor> Visitors = new List<Visitor>();
         public CaravanRecord Caravan = new CaravanRecord();
         public int NextExpeditionId = 1;
@@ -76,6 +77,7 @@ namespace AdventurerCity.Simulation
         public Combat.GearSlot Slot;
         public int BaseId;
         public int Tier;
+        public int UniqueId;
         public float Progress;
     }
 

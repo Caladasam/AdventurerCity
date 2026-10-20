@@ -267,6 +267,18 @@ namespace AdventurerCity.Simulation
         public override bool Execute(World world, out string error) => world.Demolish(x, y, out error);
     }
 
+    public sealed class OrderUniqueCommand : Command
+    {
+        readonly int uniqueId;
+
+        public OrderUniqueCommand(int uniqueId)
+        {
+            this.uniqueId = uniqueId;
+        }
+
+        public override bool Execute(World world, out string error) => world.OrderUnique(uniqueId, out error);
+    }
+
     public sealed class AdvanceStageCommand : Command
     {
         public override bool Execute(World world, out string error) => world.AdvanceStage(out error);

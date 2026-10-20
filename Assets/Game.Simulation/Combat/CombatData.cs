@@ -14,7 +14,23 @@ namespace AdventurerCity.Simulation.Combat
         PackLeader,
         Bandit,
         Archer,
-        Chieftain
+        Chieftain,
+        Cultist,
+        Zealot,
+        Warder,
+        Summoner,
+        Imp,
+        HighPriest
+    }
+
+    public sealed class BossPhase
+    {
+        public float HpRatio;
+        public string Text;
+        public EnemyKind SummonKind;
+        public int SummonCount;
+        public float DamageBonus;
+        public float AoeSpeed = 1f;
     }
 
     public readonly struct Stats
@@ -63,6 +79,14 @@ namespace AdventurerCity.Simulation.Combat
         public EnemyKind SummonKind;
         public int SummonCount;
         public float SummonAtHpRatio = 0.5f;
+        public float SummonInterval;
+        public int SummonMax = 3;
+        public float PoisonDps;
+        public float PoisonSeconds;
+        public float ShieldAmount;
+        public float ShieldInterval;
+        public float ShieldCast;
+        public BossPhase[] Phases;
         public bool Boss;
     }
 
@@ -89,7 +113,9 @@ namespace AdventurerCity.Simulation.Combat
         public const float InjuryHpPenalty = 0.1f;
         public const int XpPerEnemyLevel = 20;
         public const int XpPerLevel = 250;
-        public const int MaxLevel = 5;
+        public const int MaxLevel = 10;
+        public const int VeteranLevel = 7;
+        public const int LegendLevel = 10;
 
         static readonly EnemyDef[] enemies =
         {
@@ -132,6 +158,33 @@ namespace AdventurerCity.Simulation.Combat
                 Kind = EnemyKind.Chieftain, Boss = true, Name = "Атаман", Level = 3, Hp = 1121, Armor = 15, Damage = 30.5f, AttackInterval = 2.2f,
                 AoeName = "Залп", AoeDamage = 30.5f, AoeInterval = 12f, AoeCast = 2f, AoeFirst = 6f,
                 SummonKind = EnemyKind.Bandit, SummonCount = 2
+            },
+            new EnemyDef { Kind = EnemyKind.Cultist, Name = "Культист", Level = 5, Hp = 146, Armor = 20, Damage = 14.6f, AttackInterval = 1.8f },
+            new EnemyDef
+            {
+                Kind = EnemyKind.Zealot, Name = "Фанатик", Level = 5, Hp = 116, Armor = 10, Damage = 10.8f, AttackInterval = 1.6f,
+                PoisonDps = 4.6f, PoisonSeconds = 5f
+            },
+            new EnemyDef
+            {
+                Kind = EnemyKind.Warder, Name = "Хранитель печати", Level = 6, Hp = 162, Armor = 30, Damage = 9.2f, AttackInterval = 2.2f,
+                ShieldAmount = 46f, ShieldInterval = 8f, ShieldCast = 1.5f
+            },
+            new EnemyDef
+            {
+                Kind = EnemyKind.Summoner, Name = "Призыватель", Level = 6, Hp = 108, Armor = 0, Damage = 9.2f, AttackInterval = 2.0f, MagicAttack = true,
+                SummonKind = EnemyKind.Imp, SummonCount = 1, SummonInterval = 12f, SummonMax = 3
+            },
+            new EnemyDef { Kind = EnemyKind.Imp, Name = "Бес", Level = 3, Hp = 42, Armor = 0, Damage = 6.2f, AttackInterval = 1.2f },
+            new EnemyDef
+            {
+                Kind = EnemyKind.HighPriest, Boss = true, Name = "Верховный жрец Мор'Гат", Level = 8, Hp = 2464, Armor = 30, Damage = 29.3f, AttackInterval = 2.4f,
+                MagicAttack = true, AoeName = "Чёрное пламя", AoeDamage = 30.8f, AoeInterval = 14f, AoeCast = 2.5f, AoeFirst = 7f,
+                Phases = new[]
+                {
+                    new BossPhase { HpRatio = 0.66f, Text = "Мор'Гат взывает к пастве", SummonKind = EnemyKind.Cultist, SummonCount = 2 },
+                    new BossPhase { HpRatio = 0.33f, Text = "Мор'Гат начинает Ритуал крови: урон растёт, пламя чаще", DamageBonus = 0.3f, AoeSpeed = 1.6f }
+                }
             }
         };
 

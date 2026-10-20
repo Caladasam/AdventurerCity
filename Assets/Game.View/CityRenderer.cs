@@ -236,6 +236,8 @@ namespace AdventurerCity.View
                 case BuildingKind.Temple:
                 case BuildingKind.Tavern:
                 case BuildingKind.Market:
+                case BuildingKind.TownHall:
+                case BuildingKind.Barracks:
                     view.Light = Effects.PointLight("Windows", view.Root, new Color(1f, 0.78f, 0.45f), 1.6f + rect.Width * 0.6f, 1.1f);
                     view.LightBase = 1.1f;
                     break;

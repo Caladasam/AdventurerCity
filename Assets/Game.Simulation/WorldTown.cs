@@ -41,6 +41,8 @@ namespace AdventurerCity.Simulation
         {
             DailyTavern();
             DailyCaravan();
+            DailyTrainingYard();
+            CheckVictory();
         }
 
         void DailyTavern()

@@ -7,7 +7,8 @@ namespace AdventurerCity.Simulation.Combat
         None,
         Ability,
         EnemyHeal,
-        EnemyAoe
+        EnemyAoe,
+        EnemyShield
     }
 
     public sealed class Combatant
@@ -75,6 +76,8 @@ namespace AdventurerCity.Simulation.Combat
         public float Thorns;
         public float Execute;
         public float HpScale = 1f;
+        public int Phase;
+        public float AoeSpeed = 1f;
 
         public readonly Dictionary<Combatant, float> Threat = new Dictionary<Combatant, float>();
 
@@ -124,6 +127,34 @@ namespace AdventurerCity.Simulation.Combat
                 HealPower = 1.5f * stats.Spi + (healer ? weapon.HealBonus : 0),
                 Injured = injured
             };
+
+            if (level >= CombatData.VeteranLevel)
+            {
+                switch (def.Role)
+                {
+                    case CombatRole.Tank:
+                        hero.MaxHp *= 1.1f;
+                        hero.Armor += 2;
+                        break;
+                    case CombatRole.Healer:
+                        hero.HealPower *= 1.15f;
+                        break;
+                    case CombatRole.Support:
+                        hero.DamageBonus += 0.05f;
+                        hero.HealPower *= 1.1f;
+                        break;
+                    default:
+                        hero.DamageBonus += 0.1f;
+                        break;
+                }
+            }
+            if (level >= CombatData.LegendLevel)
+            {
+                hero.MaxHp *= 1.1f;
+                hero.DamageBonus += 0.1f;
+                hero.HealPower *= 1.1f;
+                hero.DownedScale = 1.5f;
+            }
 
             if (title != null)
             {

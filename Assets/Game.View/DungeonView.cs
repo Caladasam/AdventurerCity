@@ -670,6 +670,7 @@ namespace AdventurerCity.View
                 case CastKind.Ability: return Classes.Get(unit.CastAbility).Name;
                 case CastKind.EnemyHeal: return "Лечение";
                 case CastKind.EnemyAoe: return CombatData.Get(unit.Enemy).AoeName;
+                case CastKind.EnemyShield: return "Печать";
                 default: return "";
             }
         }
@@ -692,6 +693,12 @@ namespace AdventurerCity.View
                 case EnemyKind.Bandit: return new Vector3(0.9f, 1.5f, 0.9f);
                 case EnemyKind.Archer: return new Vector3(0.75f, 1.5f, 0.75f);
                 case EnemyKind.Chieftain: return new Vector3(1.6f, 2.6f, 1.6f);
+                case EnemyKind.Cultist: return new Vector3(0.9f, 1.5f, 0.9f);
+                case EnemyKind.Zealot: return new Vector3(0.85f, 1.45f, 0.85f);
+                case EnemyKind.Warder: return new Vector3(1.0f, 1.6f, 1.0f);
+                case EnemyKind.Summoner: return new Vector3(0.95f, 1.6f, 0.95f);
+                case EnemyKind.Imp: return new Vector3(0.55f, 0.6f, 0.55f);
+                case EnemyKind.HighPriest: return new Vector3(2.4f, 3.6f, 2.4f);
                 default: return new Vector3(2.4f, 3.2f, 2.4f);
             }
         }
@@ -731,6 +738,12 @@ namespace AdventurerCity.View
                 case EnemyKind.Bandit: return new Color(0.6f, 0.42f, 0.25f);
                 case EnemyKind.Archer: return new Color(0.4f, 0.5f, 0.28f);
                 case EnemyKind.Chieftain: return new Color(0.55f, 0.15f, 0.12f);
+                case EnemyKind.Cultist: return new Color(0.5f, 0.12f, 0.14f);
+                case EnemyKind.Zealot: return new Color(0.45f, 0.62f, 0.3f);
+                case EnemyKind.Warder: return new Color(0.75f, 0.6f, 0.25f);
+                case EnemyKind.Summoner: return new Color(0.6f, 0.35f, 0.8f);
+                case EnemyKind.Imp: return new Color(0.9f, 0.3f, 0.2f);
+                case EnemyKind.HighPriest: return new Color(0.6f, 0.08f, 0.1f);
                 default: return new Color(0.3f, 0.24f, 0.2f);
             }
         }
@@ -742,6 +755,7 @@ namespace AdventurerCity.View
                 case Dungeons.CatacombsId: return new Color(0.16f, 0.19f, 0.23f);
                 case Dungeons.WolfDenId: return new Color(0.2f, 0.26f, 0.17f);
                 case Dungeons.BanditCampId: return new Color(0.3f, 0.25f, 0.18f);
+                case Dungeons.FortressId: return new Color(0.24f, 0.13f, 0.14f);
                 default: return new Color(0.22f, 0.2f, 0.19f);
             }
         }

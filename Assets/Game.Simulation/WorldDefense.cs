@@ -54,7 +54,7 @@ namespace AdventurerCity.Simulation
         {
             if (citizen.IsHero || citizen.WorkId == 0) return false;
             var work = GetBuilding(citizen.WorkId);
-            return work != null && work.Kind == BuildingKind.Watchtower && work.IsComplete;
+            return work != null && (work.Kind == BuildingKind.Watchtower || work.Kind == BuildingKind.Barracks) && work.IsComplete;
         }
 
         static string RaidTitle(SiteDef def) =>
@@ -138,9 +138,12 @@ namespace AdventurerCity.Simulation
                 var index = CitizenIndex(id);
                 if (index < 0) continue;
                 var citizen = State.Citizens[index];
+                var barracks = !citizen.IsHero && GetBuilding(citizen.WorkId)?.Kind == BuildingKind.Barracks;
                 defenders.Add(citizen.IsHero
                     ? HeroCombatant(citizen)
-                    : Combatant.FromHero("Стражник " + CitizenInfo.FullName(citizen), HeroClass.Barbarian, 1));
+                    : barracks
+                        ? Combatant.FromHero("Солдат " + CitizenInfo.FullName(citizen), HeroClass.Fighter, City.SoldierLevel)
+                        : Combatant.FromHero("Стражник " + CitizenInfo.FullName(citizen), HeroClass.Barbarian, 1));
             }
             var foes = new List<Combatant>();
             foreach (var kind in def.RaidEnemies) foes.Add(Combatant.FromEnemy(kind, raid.Scale));
@@ -228,7 +231,7 @@ namespace AdventurerCity.Simulation
             var parts = new List<string>();
             foreach (var type in Plunder)
             {
-                var amount = (int)Math.Floor(Stock[type] * Region.PillageShare);
+                var amount = (int)Math.Floor(Stock[type] * Region.PillageShare * (FindWorking(BuildingKind.Barracks) != null ? City.BarracksPillageScale : 1f));
                 if (amount <= 0) continue;
                 Stock.Take(type, amount);
                 parts.Add($"{ResourceInfo.Name(type).ToLower()} {amount}");

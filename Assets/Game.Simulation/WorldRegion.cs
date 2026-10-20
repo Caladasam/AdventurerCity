@@ -147,6 +147,7 @@ namespace AdventurerCity.Simulation
             if (run.Cleared)
             {
                 site.TimesCleared++;
+                if (run.Heroic) site.HeroicClears++;
                 site.Tension = 0f;
                 State.Fame += run.Heroic ? 2 : 1;
                 if (site.TimesCleared == 1) Report($"«{run.Dungeon.Name}»: открыт героический уровень сложности");

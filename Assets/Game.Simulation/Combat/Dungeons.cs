@@ -53,6 +53,7 @@ namespace AdventurerCity.Simulation.Combat
         public const int CatacombsId = 2;
         public const int WolfDenId = 3;
         public const int BanditCampId = 4;
+        public const int FortressId = 5;
         public const float HeroicScale = 1.5f;
         public const int HeroicLootMultiplier = 2;
         public const int StandardParty = 3;
@@ -138,6 +139,23 @@ namespace AdventurerCity.Simulation.Combat
                 {
                     Name = "Шатёр атамана", Kind = RoomKind.Boss, Enemies = new[] { EnemyKind.Chieftain },
                     LootMin = 20, LootMax = 20, GoldMin = 150, GoldMax = 150
+                }
+            },
+            new DungeonDef
+            {
+                Id = FortressId, Name = "Крепость культистов", LootType = ResourceType.Gems, Distance = 3, ItemLevel = 9, RoomsBeforeBoss = 4, MinCombatRooms = 3,
+                Pool = new[]
+                {
+                    Combat("Внешний двор", 2, 3, 40, 60, EnemyKind.Cultist, EnemyKind.Cultist, EnemyKind.Zealot),
+                    Combat("Часовня", 2, 4, 40, 70, EnemyKind.Warder, EnemyKind.Zealot, EnemyKind.Cultist),
+                    Combat("Зал призывов", 3, 4, 50, 80, EnemyKind.Summoner, EnemyKind.Cultist),
+                    new RoomTemplate { Name = "Огненные руны", Kind = RoomKind.Trap, TrapDamage = 35f },
+                    new RoomTemplate { Name = "Сокровищница культа", Kind = RoomKind.Stash, LootMin = 3, LootMax = 6, GoldMin = 60, GoldMax = 100 }
+                },
+                Boss = new RoomTemplate
+                {
+                    Name = "Алтарь Мор'Гата", Kind = RoomKind.Boss, Enemies = new[] { EnemyKind.HighPriest },
+                    LootMin = 12, LootMax = 12, GoldMin = 300, GoldMax = 300
                 }
             }
         };

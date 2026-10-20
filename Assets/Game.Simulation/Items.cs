@@ -193,6 +193,12 @@ namespace AdventurerCity.Simulation
                 Id = 4, Name = "Сабля атамана", BaseId = 2, BaseTier = 1, Boss = EnemyKind.Chieftain,
                 Lore = "Добивает тех, кто уже не встанет.",
                 Mods = new[] { (StatKind.WeaponDamage, 1.5f), (StatKind.CritPct, 0.04f), (StatKind.ExecutePct, 0.2f) }
+            },
+            new UniqueDef
+            {
+                Id = 5, Name = "Печать Мор'Гата", BaseId = 22, BaseTier = 3, Boss = EnemyKind.HighPriest,
+                Lore = "Тёплая. Иногда шепчет.",
+                Mods = new[] { (StatKind.HealthPct, 0.06f), (StatKind.DamagePct, 0.08f), (StatKind.CooldownPct, 0.06f), (StatKind.HealingPct, 0.08f) }
             }
         };
 

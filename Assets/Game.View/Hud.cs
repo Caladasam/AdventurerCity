@@ -34,6 +34,7 @@ namespace AdventurerCity.View
         GUIStyle leftButton;
         bool selectedHeroic;
         bool stageOpen;
+        bool victoryClosed;
         Vector2 marketScroll;
 
         public void Init(GameRunner owner, BuildTool buildTool)
@@ -107,6 +108,7 @@ namespace AdventurerCity.View
             if (economyOpen) DrawEconomy(world);
             if (mapOpen) DrawMap(world);
             if (stageOpen) DrawStage(world);
+            if (world.Victory && !victoryClosed) DrawVictory(world);
             DrawHover();
         }
 
@@ -257,6 +259,11 @@ namespace AdventurerCity.View
             if (building.Kind == BuildingKind.Market && building.IsComplete)
             {
                 DrawMarket(world, building);
+                return;
+            }
+            if ((building.Kind == BuildingKind.TownHall || building.Kind == BuildingKind.Barracks || building.Kind == BuildingKind.TrainingYard) && building.IsComplete)
+            {
+                DrawProject(world, building);
                 return;
             }
 
@@ -791,6 +798,7 @@ namespace AdventurerCity.View
             if (next == null)
             {
                 GUILayout.Label("Поселение достигло высшего этапа.", smallLabel);
+                DrawGoal(world);
                 GUILayout.EndArea();
                 return;
             }
@@ -799,9 +807,57 @@ namespace AdventurerCity.View
             foreach (var (text, met) in requirements)
                 GUILayout.Label(met ? $"<color=#8BE28B>✓ {text}</color>" : $"<color=#FF8A80>✗ {text}</color>", richLabel);
             GUILayout.Label($"<color=#BBBBBB>Откроется: {next.Unlocks}</color>", smallLabel);
+            DrawGoal(world);
             GUI.enabled = world.CanAdvanceStage(out _);
             if (GUILayout.Button($"Объявить поселение: {next.Name}", GUILayout.Height(28f))) world.Enqueue(new AdvanceStageCommand());
             GUI.enabled = true;
+            GUILayout.EndArea();
+        }
+
+        void DrawGoal(World world)
+        {
+            GUILayout.Space(6f);
+            GUILayout.Label(world.Victory ? $"<b>Цель игры достигнута на {world.State.VictoryDay}-й день</b>" : "<b>Цель игры</b>", richLabel);
+            foreach (var (text, met) in world.VictoryRequirements())
+                GUILayout.Label(met ? $"<color=#8BE28B>✓ {text}</color>" : $"<color=#FF8A80>✗ {text}</color>", richLabel);
+        }
+
+        void DrawVictory(World world)
+        {
+            const float width = 520f;
+            var rect = Panel(new Rect((Screen.width - width) * 0.5f, Screen.height * 0.3f, width, 140f));
+            GUILayout.BeginArea(new Rect(rect.x + 14f, rect.y + 10f, rect.width - 28f, rect.height - 16f));
+            GUILayout.Label("<size=22><color=#FFD54F><b>ПОБЕДА!</b></color></size>", richLabel);
+            GUILayout.Label($"На {world.State.VictoryDay}-й день город авантюристов стал легендой: ратуша стоит, культ Мор'Гата повержен. " +
+                            "Гильдия получила +10 славы. Игру можно продолжать.", smallLabel);
+            if (GUILayout.Button("Продолжить", GUILayout.Height(28f))) victoryClosed = true;
+            GUILayout.EndArea();
+        }
+
+        void DrawProject(World world, Building building)
+        {
+            const float width = 460f;
+            var def = world.Def(building);
+            string text;
+            switch (building.Kind)
+            {
+                case BuildingKind.TownHall:
+                    text = $"Сердце города: налоги +{City.TownHallTaxBonus * 100f:0}%. Нужна для победы.";
+                    break;
+                case BuildingKind.Barracks:
+                    text = $"Солдаты казарм ({building.Workers}/{def.Workers}) защищают город как воины {City.SoldierLevel}-го уровня. Пока казармы работают, грабители уносят вдвое меньше.";
+                    break;
+                default:
+                    text = $"Наставник ({building.Workers}/{def.Workers}) каждый день даёт героям в городе по {City.TrainingXp} опыта за {City.TrainingGold} золота с героя.";
+                    break;
+            }
+            var rect = Panel(new Rect(10f, TopBarHeight + 8f, width, building.Kind == BuildingKind.TownHall ? 230f : 120f));
+            GUILayout.BeginArea(new Rect(rect.x + 10f, rect.y + 6f, rect.width - 20f, rect.height - 10f));
+            GUILayout.Label($"<b>{def.Name}</b>", richLabel);
+            GUILayout.Label(text, smallLabel);
+            if (def.Upkeep > 0) GUILayout.Label($"<color=#AAAAAA>Содержание: {def.Upkeep} золота в день</color>", smallLabel);
+            if (!building.IsConnected) GUILayout.Label("<color=#FF8A80>Нет дороги к складу — не работает</color>", smallLabel);
+            if (building.Kind == BuildingKind.TownHall) DrawGoal(world);
             GUILayout.EndArea();
         }
 
@@ -1015,7 +1071,7 @@ namespace AdventurerCity.View
         {
             const float width = 700f;
             var orders = world.ForgeOrders;
-            var height = 140f + Items.Bases.Count * 26f + orders.Count * 20f;
+            var height = 200f + Items.Bases.Count * 26f + orders.Count * 20f;
             var rect = Panel(new Rect(10f, TopBarHeight + 8f, width, height));
             GUILayout.BeginArea(new Rect(rect.x + 10f, rect.y + 6f, rect.width - 20f, rect.height - 10f));
 
@@ -1045,11 +1101,22 @@ namespace AdventurerCity.View
             GUILayout.Label($"<color=#AAAAAA>Цена: простое — {ResourceInfo.Format(World.CraftCost(ItemSlot.Weapon, 0))}; железное — {ResourceInfo.Format(World.CraftCost(ItemSlot.Weapon, 1))}; " +
                             $"стальное — {ResourceInfo.Format(World.CraftCost(ItemSlot.Weapon, 2))}; мифриловое — {ResourceInfo.Format(World.CraftCost(ItemSlot.Weapon, 3))}. Украшения дороже в золоте и самоцветах.</color>", smallLabel);
 
+            GUILayout.Label($"<b>Заказ уникальной вещи</b> <color=#AAAAAA>({City.UniqueGold} золота и {City.UniqueGems} самоцветов, {City.UniqueForgeTicks / SimConstants.TicksPerDay} дн.; только в «{Stages.Get(Stages.Max).Name}»)</color>", richLabel);
+            GUILayout.BeginHorizontal();
+            foreach (var unique in Items.Uniques)
+            {
+                GUI.enabled = world.CanOrderUnique(unique.Id, out var why);
+                if (GUILayout.Button(new GUIContent(unique.Name, why ?? unique.Lore), toolStyle, GUILayout.Width(128f), GUILayout.Height(30f)))
+                    world.Enqueue(new OrderUniqueCommand(unique.Id));
+            }
+            GUI.enabled = true;
+            GUILayout.EndHorizontal();
+
             if (orders.Count > 0) GUILayout.Label("<b>Очередь</b>", richLabel);
             foreach (var order in orders)
             {
                 GUILayout.BeginHorizontal();
-                GUILayout.Label(Items.BaseName(Items.Base(order.BaseId), order.Tier), smallLabel, GUILayout.Width(300f));
+                GUILayout.Label(order.UniqueId != 0 ? $"<color=#FF9A3C>{Items.Unique(order.UniqueId).Name}</color>" : Items.BaseName(Items.Base(order.BaseId), order.Tier), smallLabel, GUILayout.Width(300f));
                 var bar = GUILayoutUtility.GetRect(160f, 12f, GUILayout.Width(160f));
                 DrawBar(new Rect(bar.x, bar.y + 4f, bar.width, 10f), order.Progress / World.ForgeTicks(order), new Color(0.9f, 0.6f, 0.25f));
                 GUILayout.EndHorizontal();

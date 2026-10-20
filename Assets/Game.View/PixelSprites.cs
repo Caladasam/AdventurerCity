@@ -443,6 +443,106 @@ namespace AdventurerCity.View
                 "....kNNk.kNNk...",
                 "....kkkk.kkkk..."
             },
+            ["Cultist"] = new[]
+            {
+                "......kkkk......",
+                ".....kRRRRk.....",
+                "....kRRRRRRk....",
+                "....kRzezRRk....",
+                "....kRRRRRRk....",
+                "...kkRRRRRRkk...",
+                "..kRRRRyRRRRRkm.",
+                "..kRsRRyRRRRskm.",
+                "..kRRRRyRRRRRkm.",
+                "...kRRRRRRRRk.m.",
+                "...kRRRRRRRRk.m.",
+                "...kRRRRRRRRk.k.",
+                "...kRRRRRRRRk...",
+                "...kkkkkkkkkk..."
+            },
+            ["Zealot"] = new[]
+            {
+                "......kkkk......",
+                ".....kPPPPk.....",
+                "....kPPPPPPk....",
+                "....kPszszPk....",
+                "....kPssssPk....",
+                "...kkRRRRRRkk...",
+                "..kRRRRqRRRRk...",
+                "..ksRRRqRRRskq..",
+                "...kRRRqRRRkkq..",
+                "...kRRRRRRRk.m..",
+                "...kRRRRRRRk....",
+                "...kRRkkkRRk....",
+                "...kRk...kRk....",
+                "...kkk...kkk...."
+            },
+            ["Warder"] = new[]
+            {
+                "......kkkk......",
+                ".....kMMMMk.....",
+                ".....kMzzMk.....",
+                ".....kMeeMk.....",
+                "..kkkkMMMMkk....",
+                ".kyyykRRRRRRk...",
+                "kyRRyykRRyRRkm..",
+                "kyRyRykRyyyRkm..",
+                "kyRRyykRRyRRkm..",
+                ".kyyykRRRRRRkm..",
+                "..kk.kMMMMMMk...",
+                ".....kRRkkRRk...",
+                ".....kMMk.kMMk..",
+                ".....kkkk.kkkk.."
+            },
+            ["Summoner"] = new[]
+            {
+                "..v......kkkk.....",
+                ".vpv....kPPPPk....",
+                "..v....kPPPPPPk...",
+                "..k....kPzvzvPk...",
+                "..k....kPPPPPPk...",
+                "..k...kkPPPPPPkk..",
+                "..kkkkPPPPvPPPPPk.",
+                "..k..kPPPPvPPPPPk.",
+                "..k..kPPPvvvPPPPk.",
+                "..k..kPPPPvPPPPPk.",
+                "..k..kPPPPPPPPPPk.",
+                "..k..kPPPPPPPPPPk.",
+                "..k..kkkkkkkkkkkk."
+            },
+            ["Imp"] = new[]
+            {
+                ".k......k.",
+                "krk....krk",
+                ".krrrrrrk.",
+                "krryrryrrk",
+                "krrrrrrrrk",
+                ".krrRRrrk.",
+                "..krrrrk..",
+                ".kr.kk.rk.",
+                ".kk....kk."
+            },
+            ["HighPriest"] = new[]
+            {
+                "........yy.yy.yy......",
+                "........yyyyyyyy......",
+                ".......kRRRRRRRRk.....",
+                "......kRRRRRRRRRRk....",
+                "......kRRzezzezRRk....",
+                "......kRRRRRRRRRRk....",
+                "....kkRRRRRRRRRRRRkk..",
+                "..kkRRRRRRRyyRRRRRRRk.",
+                ".kRRRRRRRRRyyRRRRRRRRk",
+                "kvRRsRRRRyyyyyyRRRRsRk",
+                "vvvkRRRRRRRyyRRRRRRRRk",
+                "kvk.kRRRRRRyyRRRRRRRk.",
+                "..k.kRRRRRRRRRRRRRRRk.",
+                "..k.kPPPPPPPPPPPPPPPk.",
+                "..k.kRRRRRRRRRRRRRRRk.",
+                "..k.kRRRRRRRRRRRRRRRRk",
+                "..k.kRRRRRRRRRRRRRRRRk",
+                "..k.kkkkkkkkkkkkkkkkkk"
+            },
             ["Villager"] = new[]
             {
                 "..kkkk..",
@@ -645,6 +745,33 @@ namespace AdventurerCity.View
 
         public static readonly Dictionary<string, string[]> Icons = new Dictionary<string, string[]>
         {
+            ["hall"] = new[]
+            {
+                "...yyy...",
+                "...kyk...",
+                "kkkkkkkkk",
+                "kwkwkwkwk",
+                "kwkwkwkwk",
+                "kkkkkkkkk"
+            },
+            ["swords"] = new[]
+            {
+                "m.....m",
+                ".m...m.",
+                "..m.m..",
+                "...k...",
+                "..n.n..",
+                ".n...n."
+            },
+            ["dummy"] = new[]
+            {
+                "..kkk..",
+                "..knk..",
+                "kkkkkkk",
+                "..knk..",
+                "..knk..",
+                ".kk.kk."
+            },
             ["mug"] = new[]
             {
                 ".wwwww...",

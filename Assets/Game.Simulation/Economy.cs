@@ -73,7 +73,7 @@ namespace AdventurerCity.Simulation
                 else flexibleFood += food;
                 if (level.NeedsFirewood)
                     flows[(int)ResourceType.Logs].Consume("Дрова для домов", SimConstants.FirewoodPerHouse);
-                flows[(int)ResourceType.Gold].Produce("Налоги", house.Residents * level.TaxPerResident);
+                flows[(int)ResourceType.Gold].Produce("Налоги", (float)Math.Round(house.Residents * level.TaxPerResident * world.TaxMultiplier));
             }
 
             foreach (var building in world.Buildings)
@@ -82,9 +82,11 @@ namespace AdventurerCity.Simulation
                 if (upkeep > 0 && building.IsComplete) flows[(int)ResourceType.Gold].Consume("Содержание зданий", upkeep);
             }
 
+            var training = world.FindWorking(BuildingKind.TrainingYard) != null;
             foreach (var citizen in world.Citizens)
             {
                 if (!citizen.IsHero) continue;
+                if (training && !citizen.OnExpedition) flows[(int)ResourceType.Gold].Consume("Тренировочный двор", City.TrainingGold);
                 flows[(int)ResourceType.Gold].Consume("Жалованье героев", world.HeroWage(citizen));
                 if (!citizen.OnExpedition)
                     flows[(int)ResourceType.Bread].Consume("Паёк героев", SimConstants.HeroBreadPerDay);

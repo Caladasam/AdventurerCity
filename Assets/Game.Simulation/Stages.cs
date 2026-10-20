@@ -40,7 +40,7 @@ namespace AdventurerCity.Simulation
                 Buildings = new[] { BuildingKind.Tavern, BuildingKind.Market, BuildingKind.Temple },
                 Cost = new[] { new ResourceAmount(ResourceType.Gold, 300), new ResourceAmount(ResourceType.Planks, 80), new ResourceAmount(ResourceType.Ore, 20), new ResourceAmount(ResourceType.Gems, 5) },
                 TensionScale = 1.5f, VisitorMaxLevel = 5, CaravanScale = 1.5f,
-                Unlocks = "«Особняк» (8 жильцов, 5 золота налога), авантюристы до 5-го уровня, караваны в полтора раза богаче. Набеги ещё чаще: напряжение +50%"
+                Unlocks = "«Особняк» (8 жильцов), ратуша, казармы, тренировочный двор, заказ уникальных вещей в кузнице, разведка «Крепости культистов», авантюристы до 5-го уровня, караваны в полтора раза богаче. Набеги ещё чаще: напряжение +50%"
             }
         };
 

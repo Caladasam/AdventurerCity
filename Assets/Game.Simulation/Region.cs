@@ -32,6 +32,7 @@ namespace AdventurerCity.Simulation
         public bool Discovered;
         public float Tension;
         public int TimesCleared;
+        public int HeroicClears;
         public int Raids;
     }
 
@@ -91,6 +92,12 @@ namespace AdventurerCity.Simulation
                 Id = 4, Name = Dungeons.Get(Dungeons.BanditCampId).Name, Kind = SiteKind.Lair, MapX = 0.72f, MapY = 0.6f,
                 Distance = Dungeons.Get(Dungeons.BanditCampId).Distance, DungeonId = Dungeons.BanditCampId, TensionPerDay = 4f, Stage = 2,
                 RaidEnemies = new[] { EnemyKind.Bandit, EnemyKind.Bandit, EnemyKind.Archer }
+            },
+            new SiteDef
+            {
+                Id = 5, Name = Dungeons.Get(Dungeons.FortressId).Name, Kind = SiteKind.Dungeon, MapX = -0.05f, MapY = -0.85f, Stage = 3,
+                Distance = Dungeons.Get(Dungeons.FortressId).Distance, DungeonId = Dungeons.FortressId,
+                RaidEnemies = new[] { EnemyKind.Cultist, EnemyKind.Cultist, EnemyKind.Zealot }
             }
         };
 

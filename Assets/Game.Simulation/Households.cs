@@ -1,3 +1,5 @@
+using System;
+
 namespace AdventurerCity.Simulation
 {
     static class Households
@@ -28,7 +30,7 @@ namespace AdventurerCity.Simulation
                     needsMet = house.FoodMet && house.FirewoodMet;
                     survives = !hungry && house.FirewoodMet;
                     if (connected)
-                        world.Stock.Add(ResourceType.Gold, house.Residents * level.TaxPerResident);
+                        world.Stock.Add(ResourceType.Gold, (int)Math.Round(house.Residents * level.TaxPerResident * world.TaxMultiplier));
                 }
                 else
                 {

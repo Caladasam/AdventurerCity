@@ -51,7 +51,7 @@ namespace AdventurerCity.Simulation.Combat
 
     public sealed class Battle
     {
-        const int EnemyHealSlot = 0, EnemyAoeSlot = 1;
+        const int EnemyHealSlot = 0, EnemyAoeSlot = 1, EnemySummonSlot = 2, EnemyShieldSlot = 3;
 
         readonly List<Combatant> heroes;
         readonly List<Combatant> enemies = new List<Combatant>();
@@ -124,6 +124,8 @@ namespace AdventurerCity.Simulation.Combat
             enemy.SwingTimer = rng.Value * enemy.AttackInterval * 0.5f;
             var def = CombatData.Get(enemy.Enemy);
             if (def.AoeDamage > 0f) enemy.Cooldowns[EnemyAoeSlot] = def.AoeFirst;
+            if (def.SummonInterval > 0f) enemy.Cooldowns[EnemySummonSlot] = def.SummonInterval * 0.5f;
+            if (def.ShieldAmount > 0f) enemy.Cooldowns[EnemyShieldSlot] = def.ShieldInterval * 0.5f;
             var tank = FindRole(CombatRole.Tank);
             if (tank != null) enemy.Threat[tank] = CombatData.GuardOpeningThreat;
             else if (FirstActive(heroes) is Combatant opener) enemy.Threat[opener] = 1f;
@@ -509,7 +511,48 @@ namespace AdventurerCity.Simulation.Combat
                 }
             }
 
-            if (def.SummonCount > 0 && !enemy.SummonUsed && enemy.HpRatio <= def.SummonAtHpRatio)
+            if (def.Phases != null && enemy.Phase < def.Phases.Length && enemy.HpRatio <= def.Phases[enemy.Phase].HpRatio)
+            {
+                var phase = def.Phases[enemy.Phase++];
+                for (var i = 0; i < phase.SummonCount; i++)
+                    reinforcements.Add(Combatant.FromEnemy(phase.SummonKind, enemy.Scale, enemy.HpScale));
+                enemy.DamageBonus += phase.DamageBonus;
+                enemy.AoeSpeed *= phase.AoeSpeed;
+                Emit(phase.SummonCount > 0 ? BattleEventKind.Summon : BattleEventKind.Enrage, enemy, null);
+                Write(phase.Text);
+            }
+
+            if (def.ShieldAmount > 0f && cd[EnemyShieldSlot] <= 0f)
+            {
+                Combatant ward = null;
+                foreach (var ally in enemies)
+                    if (ally.Active && ally.Absorb <= 0f && (ward == null || ally.HpRatio < ward.HpRatio))
+                        ward = ally;
+                if (ward != null)
+                {
+                    cd[EnemyShieldSlot] = def.ShieldInterval;
+                    StartCast(enemy, CastKind.EnemyShield, def.ShieldCast, ward);
+                    return;
+                }
+            }
+
+            if (def.SummonInterval > 0f && cd[EnemySummonSlot] <= 0f)
+            {
+                cd[EnemySummonSlot] = def.SummonInterval;
+                var alive = 0;
+                foreach (var other in enemies)
+                    if (other.Active && other.Enemy == def.SummonKind)
+                        alive++;
+                if (alive + reinforcements.Count < def.SummonMax)
+                {
+                    for (var i = 0; i < def.SummonCount; i++)
+                        reinforcements.Add(Combatant.FromEnemy(def.SummonKind, enemy.Scale, enemy.HpScale));
+                    Emit(BattleEventKind.Summon, enemy, null);
+                    Write($"{enemy.Name} призывает: {CombatData.Get(def.SummonKind).Name}");
+                }
+            }
+
+            if (def.SummonCount > 0 && def.SummonInterval <= 0f && !enemy.SummonUsed && enemy.HpRatio <= def.SummonAtHpRatio)
             {
                 enemy.SummonUsed = true;
                 for (var i = 0; i < def.SummonCount; i++)
@@ -520,7 +563,7 @@ namespace AdventurerCity.Simulation.Combat
 
             if (def.AoeDamage > 0f && cd[EnemyAoeSlot] <= 0f)
             {
-                cd[EnemyAoeSlot] = def.AoeInterval;
+                cd[EnemyAoeSlot] = def.AoeInterval / enemy.AoeSpeed;
                 StartCast(enemy, CastKind.EnemyAoe, def.AoeCast, null);
                 Write($"{enemy.Name} готовит «{def.AoeName}»");
                 return;
@@ -529,7 +572,13 @@ namespace AdventurerCity.Simulation.Combat
             if (enemy.SwingTimer > 0f) return;
             var target = TopThreat(enemy);
             if (target == null) return;
-            Hit(enemy, target, 1f, enemy.MagicAttack, 1f);
+            var dealt = Hit(enemy, target, 1f, enemy.MagicAttack, 1f);
+            if (dealt > 0f && def.PoisonDps > 0f && target.Active)
+            {
+                target.DotSource = enemy;
+                target.DotPerSecond = def.PoisonDps * enemy.Scale;
+                target.DotTimer = def.PoisonSeconds;
+            }
             enemy.SwingTimer = enemy.AttackInterval;
         }
 
@@ -561,12 +610,18 @@ namespace AdventurerCity.Simulation.Combat
                     target.Hp += restored;
                     Emit(BattleEventKind.Heal, caster, target, restored);
                     break;
+                case CastKind.EnemyShield:
+                    if (target == null || !target.Active) return;
+                    target.Absorb = CombatData.Get(caster.Enemy).ShieldAmount * caster.Scale;
+                    Emit(BattleEventKind.Ability, caster, target);
+                    Write($"{caster.Name} накрывает печатью: {target.Name}");
+                    break;
                 case CastKind.EnemyAoe:
                     Emit(BattleEventKind.EnemyAoe, caster, null);
                     Write($"«{CombatData.Get(caster.Enemy).AoeName}» бьёт по отряду");
                     foreach (var hero in heroes)
                         if (hero.Active)
-                            ApplyDamage(caster, hero, CombatData.Get(caster.Enemy).AoeDamage * caster.Scale, 1f);
+                            ApplyDamage(caster, hero, CombatData.Get(caster.Enemy).AoeDamage * caster.Scale * (1f + caster.DamageBonus), 1f);
                     break;
             }
         }
@@ -602,7 +657,7 @@ namespace AdventurerCity.Simulation.Combat
             if (defender.IsHero && defender.Role == CombatRole.Tank) damage *= 1f - CombatData.TankMitigation;
             if (defender.MarkTimer > 0f) damage *= 1f + Classes.MarkBonus;
             if (defender.GuardTimer > 0f) damage *= 1f - defender.GuardAmount;
-            if (defender.IsHero)
+            if (defender.Absorb > 0f)
             {
                 var absorbed = Math.Min(defender.Absorb, damage);
                 defender.Absorb -= absorbed;

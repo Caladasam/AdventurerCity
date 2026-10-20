@@ -235,7 +235,7 @@ namespace AdventurerCity.Simulation
             }
         }
 
-        public static int ForgeTicks(ForgeOrder order) => new[] { 15, 30, 60, 90 }[Math.Min(order.Tier, Items.MaxBaseTier)];
+        public static int ForgeTicks(ForgeOrder order) => order.UniqueId != 0 ? City.UniqueForgeTicks : new[] { 15, 30, 60, 90 }[Math.Min(order.Tier, Items.MaxBaseTier)];
 
         public bool CanCraft(int baseId, int tier, out string reason)
         {
@@ -285,7 +285,9 @@ namespace AdventurerCity.Simulation
                 if (order.Progress < ForgeTicks(order)) continue;
                 orders.RemoveAt(i);
                 workforceDirty = true;
-                var item = AddItem(Items.MakeBase(order.BaseId, order.Tier, Items.BaseTierLevels[Math.Min(order.Tier, Items.MaxBaseTier)]), false);
+                var item = order.UniqueId != 0
+                    ? AddItem(Items.MakeUnique(Items.Unique(order.UniqueId), City.UniqueItemLevel), false)
+                    : AddItem(Items.MakeBase(order.BaseId, order.Tier, Items.BaseTierLevels[Math.Min(order.Tier, Items.MaxBaseTier)]), false);
                 Report($"Кузница выковала: {item.Name} — лежит на складе гильдии");
             }
         }
