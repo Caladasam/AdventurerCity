@@ -74,13 +74,15 @@ namespace AdventurerCity.Simulation
         void TickRaids()
         {
             var raids = State.Raids;
+            var busy = activeRaids.Count > 0;
             for (var i = raids.Count - 1; i >= 0; i--)
             {
                 var raid = raids[i];
                 if (raid.Fighting) continue;
-                raid.TicksLeft--;
-                if (raid.TicksLeft > 0) continue;
+                if (raid.TicksLeft > 0) raid.TicksLeft--;
+                if (raid.TicksLeft > 0 || busy) continue;
                 BeginDefense(raid, i);
+                busy = activeRaids.Count > 0;
             }
         }
 
@@ -182,7 +184,6 @@ namespace AdventurerCity.Simulation
 
         void ApplyDefenseResults(List<Combatant> defenders, List<int> ids, int xpPool, bool won, string title)
         {
-            var standing = new List<int>();
             var survivors = 0;
             foreach (var fighter in defenders)
                 if (!fighter.Dead)
@@ -210,14 +211,12 @@ namespace AdventurerCity.Simulation
                 citizen.OnExpedition = false;
                 if (citizen.IsHero)
                 {
-                    standing.Add(citizen.Id);
                     if (fighter.Injured && citizen.InjuryDays == 0) citizen.InjuryDays = SimConstants.InjuryDays;
                     if (survivors > 0) GrantHeroXp(ref citizen, (int)(xpPool / survivors * TraitXp(citizen)));
                     AddChronicle(citizen.Id, won ? $"отбил(а) набег — {title}" : $"не удержал(а) ворота — {title}");
                 }
                 citizens[index] = citizen;
             }
-            ShareExperience(standing);
         }
 
         void Pillage()

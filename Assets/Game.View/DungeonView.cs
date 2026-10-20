@@ -61,6 +61,8 @@ namespace AdventurerCity.View
         float shakeTime;
         float hitStop;
         float flashTime;
+        float lingerTime;
+        string lingerText;
         GUIStyle label;
         GUIStyle bigLabel;
         GUIStyle panelStyle;
@@ -160,6 +162,8 @@ namespace AdventurerCity.View
 
         void Clear()
         {
+            lingerTime = 0f;
+            lingerText = null;
             foreach (var actor in actors.Values) Destroy(actor.Root.gameObject);
             actors.Clear();
             texts.Clear();
@@ -180,6 +184,19 @@ namespace AdventurerCity.View
             var raid = WatchedRaid();
             if (active == null && raid == null)
             {
+                if (WatchedRaidSite != 0 && shownBattle != null && lingerText == null)
+                {
+                    lingerText = shownBattle.Outcome == BattleOutcome.Won ? "НАБЕГ ОТБИТ!" : "ВОРОТА ПАЛИ — ГОРОД РАЗГРАБЛЕН";
+                    lingerTime = 3f;
+                }
+                if (lingerText != null && lingerTime > 0f)
+                {
+                    lingerTime -= Time.deltaTime;
+                    Animate();
+                    AnimateLights();
+                    PlaceCamera();
+                    return;
+                }
                 if (WatchedExpeditionId != 0) runner.Log.Add(new SimEvent(runner.Sim.State.Tick, "Отряд вернулся из похода"));
                 StopWatching();
                 return;
@@ -518,7 +535,7 @@ namespace AdventurerCity.View
             if (!IsWatching) return;
             var active = Watched();
             var raid = WatchedRaid();
-            if (active == null && raid == null) return;
+            if (active == null && raid == null && lingerText == null) return;
             if (label == null)
             {
                 label = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontSize = 12, richText = true };
@@ -565,6 +582,13 @@ namespace AdventurerCity.View
                 GUI.Label(new Rect(point.x - 80f, Screen.height - point.y - 12f, 160f, 24f), text.Text, style);
             }
 
+            if (active == null && raid == null)
+            {
+                var won = lingerText.StartsWith("НАБЕГ");
+                GUI.Label(new Rect(0f, Screen.height * 0.32f, Screen.width, 50f),
+                    $"<size=34><color={(won ? "#9CFF9C" : "#FF7A6E")}><b>{lingerText}</b></color></size>", label);
+                return;
+            }
             var run = active?.Run;
             var header = new Rect(Screen.width * 0.5f - 260f, 40f, 520f, 64f);
             GUI.Box(header, GUIContent.none, panelStyle);

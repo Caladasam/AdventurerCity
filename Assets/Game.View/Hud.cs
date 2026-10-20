@@ -577,7 +577,8 @@ namespace AdventurerCity.View
                 }
                 else
                 {
-                    GUI.Label(new Rect(rect.x + 10f, y, width - 20f, 20f), $"<color=#FF8A80><b>{kind}</b></color>: {from} — враги в городе через {raid.TicksLeft} с", richLabel);
+                    var when = raid.TicksLeft > 0 ? $"враги в городе через {raid.TicksLeft} с" : "враги у ворот, ждут конца боя";
+                    GUI.Label(new Rect(rect.x + 10f, y, width - 20f, 20f), $"<color=#FF8A80><b>{kind}</b></color>: {from} — {when}", richLabel);
                 }
                 y += 20f;
             }

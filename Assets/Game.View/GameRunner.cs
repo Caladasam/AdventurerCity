@@ -16,6 +16,7 @@ namespace AdventurerCity.View
         ContentLibrary content;
         CityRenderer cityRenderer;
         CitizensView citizensView;
+        RaidView raidView;
         BuildTool tool;
         DungeonView dungeonView;
         float accumulator;
@@ -53,6 +54,8 @@ namespace AdventurerCity.View
             cityRenderer.Init(this);
             citizensView = gameObject.AddComponent<CitizensView>();
             citizensView.Init(this);
+            raidView = gameObject.AddComponent<RaidView>();
+            raidView.Init(this);
             var hud = gameObject.AddComponent<Hud>();
             tool = gameObject.AddComponent<BuildTool>();
             tool.Init(this, rig, hud);
@@ -154,6 +157,7 @@ namespace AdventurerCity.View
             tool.SelectedId = 0;
             cityRenderer.ResetView();
             citizensView.ResetView();
+            raidView.ResetView();
         }
     }
 }
