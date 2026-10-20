@@ -19,7 +19,11 @@ namespace AdventurerCity.Simulation.Combat
         Ratman,
         Digger,
         Shaman,
-        Grok
+        Grok,
+        Skeleton,
+        Ghoul,
+        BoneMage,
+        CryptKeeper
     }
 
     public readonly struct Stats
@@ -70,6 +74,17 @@ namespace AdventurerCity.Simulation.Combat
         public int Damage;
         public float AttackInterval;
         public bool MagicAttack;
+        public float HealAmount;
+        public float HealInterval;
+        public float HealCast;
+        public string AoeName;
+        public float AoeDamage;
+        public float AoeInterval;
+        public float AoeCast;
+        public float AoeFirst;
+        public EnemyKind SummonKind;
+        public int SummonCount;
+        public float SummonAtHpRatio = 0.5f;
     }
 
     public static class CombatData
@@ -90,8 +105,6 @@ namespace AdventurerCity.Simulation.Combat
         public const int XpPerEnemyLevel = 20;
         public const int XpPerLevel = 250;
         public const int MaxLevel = 5;
-        public const float CollapseDamage = 40f;
-        public const float ShamanHeal = 35f;
 
         static readonly HeroClassDef[] classes =
         {
@@ -119,8 +132,30 @@ namespace AdventurerCity.Simulation.Combat
         {
             new EnemyDef { Kind = EnemyKind.Ratman, Name = "Крысолюд", Level = 1, Hp = 90, Armor = 5, Damage = 9, AttackInterval = 1.6f },
             new EnemyDef { Kind = EnemyKind.Digger, Name = "Гоблин-копатель", Level = 2, Hp = 160, Armor = 10, Damage = 15, AttackInterval = 2.0f },
-            new EnemyDef { Kind = EnemyKind.Shaman, Name = "Гоблин-шаман", Level = 2, Hp = 110, Armor = 0, Damage = 9, AttackInterval = 2.0f, MagicAttack = true },
-            new EnemyDef { Kind = EnemyKind.Grok, Name = "Бригадир Грок", Level = 3, Hp = 1450, Armor = 20, Damage = 35, AttackInterval = 2.5f }
+            new EnemyDef
+            {
+                Kind = EnemyKind.Shaman, Name = "Гоблин-шаман", Level = 2, Hp = 110, Armor = 0, Damage = 9, AttackInterval = 2.0f, MagicAttack = true,
+                HealAmount = 35f, HealInterval = 6f, HealCast = 1.5f
+            },
+            new EnemyDef
+            {
+                Kind = EnemyKind.Grok, Name = "Бригадир Грок", Level = 3, Hp = 1450, Armor = 20, Damage = 35, AttackInterval = 2.5f,
+                AoeName = "Обвал", AoeDamage = 40f, AoeInterval = 15f, AoeCast = 2.5f, AoeFirst = 8f,
+                SummonKind = EnemyKind.Ratman, SummonCount = 2
+            },
+            new EnemyDef { Kind = EnemyKind.Skeleton, Name = "Скелет", Level = 3, Hp = 140, Armor = 15, Damage = 14, AttackInterval = 1.8f },
+            new EnemyDef { Kind = EnemyKind.Ghoul, Name = "Упырь", Level = 3, Hp = 180, Armor = 5, Damage = 18, AttackInterval = 2.2f },
+            new EnemyDef
+            {
+                Kind = EnemyKind.BoneMage, Name = "Костяной маг", Level = 3, Hp = 110, Armor = 0, Damage = 12, AttackInterval = 2.0f, MagicAttack = true,
+                AoeName = "Волна тлена", AoeDamage = 20f, AoeInterval = 10f, AoeCast = 2f, AoeFirst = 4f
+            },
+            new EnemyDef
+            {
+                Kind = EnemyKind.CryptKeeper, Name = "Хранитель склепа", Level = 4, Hp = 2200, Armor = 25, Damage = 40, AttackInterval = 2.6f,
+                AoeName = "Проклятие", AoeDamage = 45f, AoeInterval = 14f, AoeCast = 2.5f, AoeFirst = 6f,
+                SummonKind = EnemyKind.Skeleton, SummonCount = 2
+            }
         };
 
         public static HeroClassDef Get(HeroClass heroClass) => classes[(int)heroClass];

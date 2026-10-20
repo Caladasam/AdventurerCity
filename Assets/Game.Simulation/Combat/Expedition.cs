@@ -2,16 +2,6 @@ using System.Collections.Generic;
 
 namespace AdventurerCity.Simulation.Combat
 {
-    public enum RoomType
-    {
-        RatNest,
-        Dig,
-        Camp,
-        Cave,
-        Stash,
-        Boss
-    }
-
     public enum ExpeditionPhase
     {
         TravelOut,
@@ -23,47 +13,43 @@ namespace AdventurerCity.Simulation.Combat
 
     public sealed class Expedition
     {
-        public const float TravelSeconds = 20f;
         public const float RestSeconds = 10f;
         public const float RestRestore = 0.3f;
         public const float RetreatHpRatio = 0.4f;
-        public const float TrapDamage = 15f;
-        public const int RoomsBeforeBoss = 4;
-        public const int MinCombatRooms = 3;
-
-        static readonly RoomType[] pool = { RoomType.RatNest, RoomType.Dig, RoomType.Camp, RoomType.Cave, RoomType.Stash };
-        static readonly string[] roomNames =
-        {
-            "Крысиное гнездо", "Забой", "Капище", "Просевший свод", "Заброшенная кладовая", "Логово бригадира"
-        };
 
         readonly Rng rng;
 
-        public Expedition(List<Combatant> party, int seed, List<string> log = null)
+        public Expedition(List<Combatant> party, int seed, DungeonDef dungeon, bool heroic, List<string> log = null)
         {
             Party = party;
+            Dungeon = dungeon;
+            Heroic = heroic;
             Log = log;
             rng = new Rng(seed);
-            Rooms = GenerateRooms(rng);
-            Rooms.Add(RoomType.Boss);
+            Rooms = GenerateRooms(dungeon, rng);
+            Rooms.Add(dungeon.Boss);
         }
 
         public List<Combatant> Party { get; }
-        public List<RoomType> Rooms { get; }
+        public DungeonDef Dungeon { get; }
+        public bool Heroic { get; }
+        public List<RoomTemplate> Rooms { get; }
         public List<string> Log { get; }
         public ExpeditionPhase Phase { get; private set; }
         public float PhaseTime { get; private set; }
         public float Elapsed { get; private set; }
         public int RoomIndex { get; private set; }
         public Battle Battle { get; private set; }
-        public int Ore { get; private set; }
+        public int Loot { get; private set; }
         public int Gold { get; private set; }
+        public ResourceType LootType => Dungeon.LootType;
         public bool Cleared { get; private set; }
         public bool Retreated { get; private set; }
         public bool Wiped { get; private set; }
         public bool BossReached { get; private set; }
         public bool BossKilled { get; private set; }
         public bool IsDone => Phase == ExpeditionPhase.Done;
+        public float EnemyScale => Heroic ? Dungeons.HeroicScale : 1f;
 
         public int Deaths
         {
@@ -77,29 +63,26 @@ namespace AdventurerCity.Simulation.Combat
             }
         }
 
-        public static string RoomName(RoomType room) => roomNames[(int)room];
-
-        public static bool IsCombat(RoomType room) => room != RoomType.Cave && room != RoomType.Stash;
-
-        public static List<RoomType> GenerateRooms(Rng rng)
+        public static List<RoomTemplate> GenerateRooms(DungeonDef dungeon, Rng rng)
         {
+            var pool = dungeon.Pool;
             while (true)
             {
-                var rooms = new List<RoomType>();
+                var rooms = new List<RoomTemplate>();
                 var combat = 0;
-                for (var i = 0; i < RoomsBeforeBoss; i++)
+                for (var i = 0; i < dungeon.RoomsBeforeBoss; i++)
                 {
                     var room = pool[rng.Range(0, pool.Length - 1)];
                     rooms.Add(room);
-                    if (IsCombat(room)) combat++;
+                    if (room.IsCombat) combat++;
                 }
-                if (combat >= MinCombatRooms) return rooms;
+                if (combat >= dungeon.MinCombatRooms) return rooms;
             }
         }
 
-        public static Expedition RunToEnd(List<Combatant> party, int seed, List<string> log = null)
+        public static Expedition RunToEnd(List<Combatant> party, int seed, DungeonDef dungeon, bool heroic = false, List<string> log = null)
         {
-            var expedition = new Expedition(party, seed, log);
+            var expedition = new Expedition(party, seed, dungeon, heroic, log);
             while (!expedition.IsDone) expedition.Step();
             return expedition;
         }
@@ -113,7 +96,7 @@ namespace AdventurerCity.Simulation.Combat
             switch (Phase)
             {
                 case ExpeditionPhase.TravelOut:
-                    if (PhaseTime >= TravelSeconds) EnterRoom();
+                    if (PhaseTime >= Dungeon.TravelSeconds) EnterRoom();
                     break;
                 case ExpeditionPhase.Room:
                     if (Battle != null)
@@ -126,7 +109,7 @@ namespace AdventurerCity.Simulation.Combat
                     if (PhaseTime >= RestSeconds) FinishRest();
                     break;
                 case ExpeditionPhase.TravelBack:
-                    if (PhaseTime >= TravelSeconds)
+                    if (PhaseTime >= Dungeon.TravelSeconds)
                     {
                         Phase = ExpeditionPhase.Done;
                         Write("Отряд вернулся в город");
@@ -140,51 +123,29 @@ namespace AdventurerCity.Simulation.Combat
             Phase = ExpeditionPhase.Room;
             PhaseTime = 0f;
             var room = Rooms[RoomIndex];
-            Write("Комната: " + RoomName(room));
+            Write("Комната: " + room.Name);
 
-            switch (room)
+            switch (room.Kind)
             {
-                case RoomType.Cave:
+                case RoomKind.Trap:
                     foreach (var hero in Party)
                     {
                         if (!hero.Active || rng.Chance(hero.DodgeChance * 2f)) continue;
-                        hero.Hp = System.Math.Max(1f, hero.Hp - TrapDamage);
+                        hero.Hp = System.Math.Max(1f, hero.Hp - room.TrapDamage * EnemyScale);
                     }
-                    Write("Свод осыпается, отряд выбирается из-под камней");
+                    Write("Ловушка! Отряд выбирается, потрёпанный");
                     RoomDone();
                     return;
-                case RoomType.Stash:
-                    AddLoot(rng.Range(5, 10), rng.Range(20, 40));
+                case RoomKind.Stash:
+                    AddLoot(room);
                     RoomDone();
                     return;
             }
 
-            if (room == RoomType.Boss) BossReached = true;
-            Battle = new Battle(Party, Enemies(room), rng, Log);
-        }
-
-        static IEnumerable<Combatant> Enemies(RoomType room)
-        {
-            switch (room)
-            {
-                case RoomType.RatNest:
-                    yield return Combatant.FromEnemy(EnemyKind.Ratman);
-                    yield return Combatant.FromEnemy(EnemyKind.Ratman);
-                    yield return Combatant.FromEnemy(EnemyKind.Ratman);
-                    break;
-                case RoomType.Dig:
-                    yield return Combatant.FromEnemy(EnemyKind.Digger);
-                    yield return Combatant.FromEnemy(EnemyKind.Digger);
-                    yield return Combatant.FromEnemy(EnemyKind.Ratman);
-                    break;
-                case RoomType.Camp:
-                    yield return Combatant.FromEnemy(EnemyKind.Digger);
-                    yield return Combatant.FromEnemy(EnemyKind.Shaman);
-                    break;
-                case RoomType.Boss:
-                    yield return Combatant.FromEnemy(EnemyKind.Grok);
-                    break;
-            }
+            if (room.Kind == RoomKind.Boss) BossReached = true;
+            var foes = new List<Combatant>();
+            foreach (var kind in room.Enemies) foes.Add(Combatant.FromEnemy(kind, EnemyScale));
+            Battle = new Battle(Party, foes, rng, Log);
         }
 
         void FinishBattle(BattleOutcome outcome)
@@ -203,15 +164,8 @@ namespace AdventurerCity.Simulation.Combat
             switch (outcome)
             {
                 case BattleOutcome.Won:
-                    switch (room)
-                    {
-                        case RoomType.RatNest: AddLoot(rng.Range(2, 4), rng.Range(10, 20)); break;
-                        case RoomType.Boss:
-                            BossKilled = true;
-                            AddLoot(15, 100);
-                            break;
-                        default: AddLoot(rng.Range(3, 5), rng.Range(15, 25)); break;
-                    }
+                    if (room.Kind == RoomKind.Boss) BossKilled = true;
+                    AddLoot(room);
                     RoomDone();
                     break;
                 case BattleOutcome.Retreated:
@@ -220,7 +174,7 @@ namespace AdventurerCity.Simulation.Combat
                     break;
                 default:
                     Wiped = true;
-                    Ore = 0;
+                    Loot = 0;
                     Gold = 0;
                     Phase = ExpeditionPhase.Done;
                     break;
@@ -233,7 +187,7 @@ namespace AdventurerCity.Simulation.Combat
             if (RoomIndex >= Rooms.Count)
             {
                 Cleared = true;
-                Write("Шахта зачищена");
+                Write($"{Dungeon.Name}: зачищено");
                 StartReturn();
                 return;
             }
@@ -268,11 +222,14 @@ namespace AdventurerCity.Simulation.Combat
             PhaseTime = 0f;
         }
 
-        void AddLoot(int ore, int gold)
+        void AddLoot(RoomTemplate room)
         {
-            Ore += ore;
-            Gold += gold;
+            var multiplier = Heroic ? Dungeons.HeroicLootMultiplier : 1;
+            Loot += Roll(room.LootMin, room.LootMax) * multiplier;
+            Gold += Roll(room.GoldMin, room.GoldMax) * multiplier;
         }
+
+        int Roll(int min, int max) => min == max ? min : rng.Range(min, max);
 
         void Write(string text) => Log?.Add($"[{Elapsed:0} с] {text}");
     }

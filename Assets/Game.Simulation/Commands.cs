@@ -132,13 +132,29 @@ namespace AdventurerCity.Simulation
     public sealed class SendExpeditionCommand : Command
     {
         readonly List<int> heroIds;
+        readonly int dungeonId;
+        readonly bool heroic;
 
-        public SendExpeditionCommand(IEnumerable<int> heroIds)
+        public SendExpeditionCommand(IEnumerable<int> heroIds, int dungeonId = Combat.Dungeons.MineId, bool heroic = false)
         {
             this.heroIds = new List<int>(heroIds);
+            this.dungeonId = dungeonId;
+            this.heroic = heroic;
         }
 
-        public override bool Execute(World world, out string error) => world.SendExpedition(heroIds, out error);
+        public override bool Execute(World world, out string error) => world.SendExpedition(heroIds, dungeonId, heroic, out error);
+    }
+
+    public sealed class ScoutCommand : Command
+    {
+        readonly int siteId;
+
+        public ScoutCommand(int siteId)
+        {
+            this.siteId = siteId;
+        }
+
+        public override bool Execute(World world, out string error) => world.Scout(siteId, out error);
     }
 
     public sealed class OrderGearCommand : Command

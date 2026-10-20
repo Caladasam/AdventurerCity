@@ -39,11 +39,24 @@ namespace AdventurerCity.Simulation
             return -1;
         }
 
-        public bool CanSendExpedition(IReadOnlyList<int> heroIds, out string reason)
+        public static int Provisions(int heroes, int dungeonId) =>
+            heroes * SimConstants.ProvisionsPerHero * Dungeons.Get(dungeonId).Distance;
+
+        public bool CanSendExpedition(IReadOnlyList<int> heroIds, int dungeonId, bool heroic, out string reason)
         {
             if (FindGuild() == null)
             {
                 reason = "Нужна достроенная гильдия с дорогой к складу";
+                return false;
+            }
+            if (!IsDungeonOpen(dungeonId))
+            {
+                reason = "Данж ещё не разведан";
+                return false;
+            }
+            if (heroic && !IsHeroicUnlocked(dungeonId))
+            {
+                reason = "Героический уровень открывается после первой зачистки";
                 return false;
             }
             if (heroIds.Count == 0 || heroIds.Count > SimConstants.MaxPartySize)
@@ -65,7 +78,7 @@ namespace AdventurerCity.Simulation
                     return false;
                 }
             }
-            var bread = heroIds.Count * SimConstants.ProvisionsPerHero;
+            var bread = Provisions(heroIds.Count, dungeonId);
             if (!Stock.Has(ResourceType.Bread, bread))
             {
                 reason = $"Нужно {bread} хлеба на провизию";
@@ -117,16 +130,18 @@ namespace AdventurerCity.Simulation
             return true;
         }
 
-        internal bool SendExpedition(IReadOnlyList<int> heroIds, out string error)
+        internal bool SendExpedition(IReadOnlyList<int> heroIds, int dungeonId, bool heroic, out string error)
         {
-            if (!CanSendExpedition(heroIds, out error)) return false;
+            if (!CanSendExpedition(heroIds, dungeonId, heroic, out error)) return false;
 
-            Stock.Take(ResourceType.Bread, heroIds.Count * SimConstants.ProvisionsPerHero);
+            Stock.Take(ResourceType.Bread, Provisions(heroIds.Count, dungeonId));
             var record = new ExpeditionRecord
             {
                 Id = State.NextExpeditionId++,
                 Seed = Random(1000000000),
-                HeroIds = new List<int>(heroIds)
+                HeroIds = new List<int>(heroIds),
+                DungeonId = dungeonId,
+                Heroic = heroic
             };
             foreach (var id in heroIds)
             {
@@ -137,7 +152,7 @@ namespace AdventurerCity.Simulation
             }
             State.Expeditions.Add(record);
             expeditions.Add(Launch(record));
-            Report("Отряд выступил в «Заброшенную шахту»");
+            Report($"Отряд выступил: «{Dungeons.Get(dungeonId).Name}»{(heroic ? ", героический" : "")}");
             return true;
         }
 
@@ -154,7 +169,7 @@ namespace AdventurerCity.Simulation
             }
 
             var active = new ActiveExpedition { Record = record };
-            active.Run = new Expedition(party, record.Seed, active.Log);
+            active.Run = new Expedition(party, record.Seed, Dungeons.Get(record.DungeonId), record.Heroic, active.Log);
             return active;
         }
 
@@ -225,12 +240,14 @@ namespace AdventurerCity.Simulation
         void CompleteExpedition(ActiveExpedition active)
         {
             var run = active.Run;
-            Stock.Add(ResourceType.Ore, run.Ore);
+            Stock.Add(run.LootType, run.Loot);
             Stock.Add(ResourceType.Gold, run.Gold);
 
-            if (run.Cleared) Report($"Шахта зачищена! Добыча: {run.Ore} руды, {run.Gold} золота");
-            else if (run.Wiped) Report("Отряд погиб в шахте, добыча потеряна");
-            else Report($"Отряд отступил из шахты. Добыча: {run.Ore} руды, {run.Gold} золота");
+            var loot = $"{run.Loot} {ResourceInfo.Name(run.LootType).ToLower()}, {run.Gold} золота";
+            if (run.Cleared) Report($"«{run.Dungeon.Name}» зачищено! Добыча: {loot}");
+            else if (run.Wiped) Report($"Отряд погиб: «{run.Dungeon.Name}», добыча потеряна");
+            else Report($"Отряд отступил: «{run.Dungeon.Name}». Добыча: {loot}");
+            ApplyExpeditionToSite(run);
 
             var citizens = State.Citizens;
             for (var i = 0; i < active.Record.HeroIds.Count && i < run.Party.Count; i++)
@@ -242,7 +259,7 @@ namespace AdventurerCity.Simulation
 
                 if (fighter.Dead)
                 {
-                    Report($"{CitizenInfo.FullName(hero)} погиб(ла) в шахте");
+                    Report($"{CitizenInfo.FullName(hero)} погиб(ла): «{run.Dungeon.Name}»");
                     citizens.RemoveAt(index);
                     workforceDirty = true;
                     continue;

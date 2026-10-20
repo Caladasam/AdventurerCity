@@ -52,6 +52,8 @@ namespace AdventurerCity.Simulation
         public List<Citizen> Citizens = new List<Citizen>();
         public List<ExpeditionRecord> Expeditions = new List<ExpeditionRecord>();
         public List<ForgeOrder> ForgeOrders = new List<ForgeOrder>();
+        public List<SiteState> Sites = new List<SiteState>();
+        public List<ScoutRecord> Scouts = new List<ScoutRecord>();
         public int NextExpeditionId = 1;
     }
 
@@ -71,6 +73,8 @@ namespace AdventurerCity.Simulation
         public int Seed;
         public List<int> HeroIds = new List<int>();
         public float Elapsed;
+        public int DungeonId = Combat.Dungeons.MineId;
+        public bool Heroic;
     }
 
     public readonly struct SimEvent

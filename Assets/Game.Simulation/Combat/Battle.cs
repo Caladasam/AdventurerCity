@@ -16,7 +16,7 @@ namespace AdventurerCity.Simulation.Combat
         Died,
         Revived,
         Summon,
-        Collapse
+        EnemyAoe
     }
 
     public readonly struct BattleEvent
@@ -50,7 +50,7 @@ namespace AdventurerCity.Simulation.Combat
         const int GuardBash = 0, GuardTaunt = 1, GuardStance = 2;
         const int PriestRevive = 0, PriestShield = 1;
         const int WarriorCleave = 0, WarriorWhirl = 1;
-        const int EnemySpecial = 0;
+        const int EnemyHealSlot = 0, EnemyAoeSlot = 1;
 
         readonly List<Combatant> heroes;
         readonly List<Combatant> enemies = new List<Combatant>();
@@ -111,7 +111,8 @@ namespace AdventurerCity.Simulation.Combat
         {
             enemy.ResetForBattle();
             enemy.SwingTimer = rng.Value * enemy.AttackInterval * 0.5f;
-            if (enemy.Enemy == EnemyKind.Grok) enemy.Cooldowns[EnemySpecial] = 8f;
+            var def = CombatData.Get(enemy.Enemy);
+            if (def.AoeDamage > 0f) enemy.Cooldowns[EnemyAoeSlot] = def.AoeFirst;
             var guard = FindHero(HeroClass.Guard);
             if (guard != null) enemy.Threat[guard] = CombatData.GuardOpeningThreat;
             else if (FirstActive(heroes) is Combatant opener) enemy.Threat[opener] = 1f;
@@ -311,7 +312,9 @@ namespace AdventurerCity.Simulation.Combat
             if (enemy.IsCasting) return;
             var cd = enemy.Cooldowns;
 
-            if (enemy.Enemy == EnemyKind.Shaman && cd[EnemySpecial] <= 0f)
+            var def = CombatData.Get(enemy.Enemy);
+
+            if (def.HealAmount > 0f && cd[EnemyHealSlot] <= 0f)
             {
                 Combatant wounded = null;
                 foreach (var ally in enemies)
@@ -319,29 +322,27 @@ namespace AdventurerCity.Simulation.Combat
                         wounded = ally;
                 if (wounded != null)
                 {
-                    cd[EnemySpecial] = 6f;
-                    StartCast(enemy, CastKind.ShamanHeal, 1.5f, wounded);
+                    cd[EnemyHealSlot] = def.HealInterval;
+                    StartCast(enemy, CastKind.EnemyHeal, def.HealCast, wounded);
                     return;
                 }
             }
 
-            if (enemy.Enemy == EnemyKind.Grok)
+            if (def.SummonCount > 0 && !enemy.SummonUsed && enemy.HpRatio <= def.SummonAtHpRatio)
             {
-                if (!enemy.SummonUsed && enemy.HpRatio <= 0.5f)
-                {
-                    enemy.SummonUsed = true;
-                    reinforcements.Add(Combatant.FromEnemy(EnemyKind.Ratman));
-                    reinforcements.Add(Combatant.FromEnemy(EnemyKind.Ratman));
-                    Emit(BattleEventKind.Summon, enemy, null);
-                    Write($"{enemy.Name} зовёт подмогу");
-                }
-                if (cd[EnemySpecial] <= 0f)
-                {
-                    cd[EnemySpecial] = 15f;
-                    StartCast(enemy, CastKind.Collapse, 2.5f, null);
-                    Write($"{enemy.Name} готовит обвал");
-                    return;
-                }
+                enemy.SummonUsed = true;
+                for (var i = 0; i < def.SummonCount; i++)
+                    reinforcements.Add(Combatant.FromEnemy(def.SummonKind, enemy.Scale));
+                Emit(BattleEventKind.Summon, enemy, null);
+                Write($"{enemy.Name} зовёт подмогу");
+            }
+
+            if (def.AoeDamage > 0f && cd[EnemyAoeSlot] <= 0f)
+            {
+                cd[EnemyAoeSlot] = def.AoeInterval;
+                StartCast(enemy, CastKind.EnemyAoe, def.AoeCast, null);
+                Write($"{enemy.Name} готовит «{def.AoeName}»");
+                return;
             }
 
             if (enemy.SwingTimer > 0f) return;
@@ -384,18 +385,18 @@ namespace AdventurerCity.Simulation.Combat
                     Emit(BattleEventKind.Revived, caster, target);
                     Write($"{caster.Name} поднимает {target.Name}");
                     break;
-                case CastKind.ShamanHeal:
+                case CastKind.EnemyHeal:
                     if (target == null || !target.Active) return;
-                    var restored = Math.Min(CombatData.ShamanHeal, target.MaxHp - target.Hp);
+                    var restored = Math.Min(CombatData.Get(caster.Enemy).HealAmount * caster.Scale, target.MaxHp - target.Hp);
                     target.Hp += restored;
                     Emit(BattleEventKind.Heal, caster, target, restored);
                     break;
-                case CastKind.Collapse:
-                    Emit(BattleEventKind.Collapse, caster, null);
-                    Write("Свод рушится на отряд");
+                case CastKind.EnemyAoe:
+                    Emit(BattleEventKind.EnemyAoe, caster, null);
+                    Write($"«{CombatData.Get(caster.Enemy).AoeName}» бьёт по отряду");
                     foreach (var hero in heroes)
                         if (hero.Active)
-                            ApplyDamage(caster, hero, CombatData.CollapseDamage, 1f);
+                            ApplyDamage(caster, hero, CombatData.Get(caster.Enemy).AoeDamage * caster.Scale, 1f);
                     break;
             }
         }
@@ -486,7 +487,7 @@ namespace AdventurerCity.Simulation.Combat
             foreach (var enemy in enemies)
             {
                 if (!enemy.Active) continue;
-                if (enemy.Enemy == EnemyKind.Shaman && (shaman == null || enemy.Hp < shaman.Hp)) shaman = enemy;
+                if (CombatData.Get(enemy.Enemy).HealAmount > 0f && (shaman == null || enemy.Hp < shaman.Hp)) shaman = enemy;
                 if (weakest == null || enemy.Hp < weakest.Hp) weakest = enemy;
             }
             return shaman ?? weakest;

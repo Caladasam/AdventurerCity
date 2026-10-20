@@ -25,6 +25,9 @@ namespace AdventurerCity.View
         ResourceFlow[] flows;
         int flowsFrame = -1;
         bool economyOpen;
+        bool mapOpen;
+        int selectedDungeon = Dungeons.MineId;
+        bool selectedHeroic;
 
         public void Init(GameRunner owner, BuildTool buildTool)
         {
@@ -35,6 +38,7 @@ namespace AdventurerCity.View
         void Update()
         {
             if (Input.GetKeyDown(KeyCode.Tab)) economyOpen = !economyOpen;
+            if (Input.GetKeyDown(KeyCode.M)) mapOpen = !mapOpen;
         }
 
         ResourceFlow[] Flows(World world)
@@ -92,6 +96,7 @@ namespace AdventurerCity.View
             DrawSelection(world);
             DrawExpeditionWidget(world);
             if (economyOpen) DrawEconomy(world);
+            if (mapOpen) DrawMap(world);
             DrawHover();
         }
 
@@ -112,7 +117,7 @@ namespace AdventurerCity.View
             {
                 var type = (ResourceType)i;
                 GUILayout.Label($"{ResourceInfo.Name(type)}: {Short(world.Stock[type])} {Signed(resourceFlows[i].Net, true)}",
-                    richLabel, GUILayout.Width(118f));
+                    richLabel, GUILayout.Width(104f));
             }
             var minutes = Mathf.FloorToInt(world.DayProgress * 24f * 60f);
             GUILayout.Label($"День {world.Day}, {minutes / 60:00}:{minutes % 60:00}", GUILayout.Width(105f));
@@ -150,6 +155,8 @@ namespace AdventurerCity.View
                 tool.SelectDemolish();
             if (ToolButton("Экономика\n(Tab)", economyOpen))
                 economyOpen = !economyOpen;
+            if (ToolButton("Карта\n(M)", mapOpen))
+                mapOpen = !mapOpen;
 
             GUI.backgroundColor = Color.white;
             GUILayout.EndHorizontal();
@@ -364,7 +371,7 @@ namespace AdventurerCity.View
                 return index < 0 || world.Citizens[index].OnExpedition;
             });
 
-            var height = 150f + heroes.Count * 24f;
+            var height = 182f + heroes.Count * 24f;
             foreach (var active in expeditions) height += 30f + ExpeditionDetailsHeight(active, compact);
             var rect = Panel(new Rect(10f, TopBarHeight + 8f, width, height));
             GUILayout.BeginArea(new Rect(rect.x + 10f, rect.y + 6f, rect.width - 20f, rect.height - 10f));
@@ -414,12 +421,28 @@ namespace AdventurerCity.View
 
             partyIds.Clear();
             partyIds.AddRange(partySelection);
-            var canSend = world.CanSendExpedition(partyIds, out var reason);
-            GUI.enabled = canSend;
-            if (GUILayout.Button($"Отправить в «Заброшенную шахту»: {partyIds.Count} гер., " +
-                                 $"{partyIds.Count * SimConstants.ProvisionsPerHero} хлеба"))
+            GUILayout.BeginHorizontal();
+            foreach (var dungeon in Dungeons.All)
             {
-                world.Enqueue(new SendExpeditionCommand(partyIds));
+                if (!world.IsDungeonOpen(dungeon.Id)) continue;
+                GUI.backgroundColor = selectedDungeon == dungeon.Id ? ActiveTool : Color.white;
+                if (GUILayout.Button(dungeon.Name, GUILayout.Width(170f))) selectedDungeon = dungeon.Id;
+            }
+            GUI.backgroundColor = Color.white;
+            var heroicUnlocked = world.IsHeroicUnlocked(selectedDungeon);
+            if (!heroicUnlocked) selectedHeroic = false;
+            GUI.enabled = heroicUnlocked;
+            selectedHeroic = GUILayout.Toggle(selectedHeroic, "героический");
+            GUI.enabled = true;
+            GUILayout.EndHorizontal();
+
+            var target = Dungeons.Get(selectedDungeon);
+            var canSend = world.CanSendExpedition(partyIds, selectedDungeon, selectedHeroic, out var reason);
+            GUI.enabled = canSend;
+            if (GUILayout.Button($"Отправить: «{target.Name}»{(selectedHeroic ? " (героич.)" : "")} — {partyIds.Count} гер., " +
+                                 $"{World.Provisions(partyIds.Count, selectedDungeon)} хлеба"))
+            {
+                world.Enqueue(new SendExpeditionCommand(partyIds, selectedDungeon, selectedHeroic));
                 partySelection.Clear();
             }
             GUI.enabled = true;
@@ -429,7 +452,7 @@ namespace AdventurerCity.View
             for (var i = 0; i < expeditions.Count; i++)
             {
                 GUILayout.BeginHorizontal();
-                GUILayout.Label($"<b>Отряд {i + 1} в шахте</b>", richLabel);
+                GUILayout.Label($"<b>Отряд {i + 1}: {expeditions[i].Run.Dungeon.Name}</b>", richLabel);
                 GUILayout.FlexibleSpace();
                 if (GUILayout.Button("Смотреть бой", GUILayout.Width(110f))) runner.WatchExpedition(expeditions[i].Record.Id);
                 GUILayout.EndHorizontal();
@@ -437,6 +460,62 @@ namespace AdventurerCity.View
             }
 
             GUILayout.EndArea();
+        }
+
+        void DrawMap(World world)
+        {
+            const float width = 700f, height = 470f;
+            var rect = Panel(new Rect((Screen.width - width) * 0.5f, TopBarHeight + 30f, width, height));
+            GUI.Label(new Rect(rect.x + 12f, rect.y + 8f, 400f, 22f), "<b>Карта региона</b>", richLabel);
+            if (GUI.Button(new Rect(rect.xMax - 110f, rect.y + 8f, 100f, 22f), "Закрыть (M)")) mapOpen = false;
+
+            var center = new Vector2(rect.x + width * 0.5f, rect.y + height * 0.5f + 16f);
+            DrawBar(new Rect(center.x - 50f, center.y - 18f, 100f, 36f), 1f, new Color(0.22f, 0.42f, 0.86f));
+            GUI.Label(new Rect(center.x - 50f, center.y - 18f, 100f, 36f), "<b>Город</b>", new GUIStyle(richLabel) { alignment = TextAnchor.MiddleCenter });
+
+            foreach (var def in Region.Sites)
+            {
+                var site = world.FindSite(def.Id);
+                if (site == null) continue;
+                var pos = new Vector2(center.x + def.MapX * 250f, center.y - def.MapY * 165f);
+                var box = new Rect(pos.x - 95f, pos.y - 40f, 190f, 80f);
+                DrawBar(box, 1f, site.Discovered
+                    ? def.Kind == SiteKind.Dungeon ? new Color(0.25f, 0.22f, 0.3f) : new Color(0.35f, 0.18f, 0.16f)
+                    : new Color(0.18f, 0.18f, 0.2f));
+                GUILayout.BeginArea(new Rect(box.x + 6f, box.y + 4f, box.width - 12f, box.height - 8f));
+                if (!site.Discovered)
+                {
+                    GUILayout.Label($"<b>Неизведано</b> · {def.Distance} дн. пути", richLabel);
+                    var scout = world.ScoutFor(def.Id);
+                    if (scout != null)
+                    {
+                        GUILayout.Label($"<color=#BBBBBB>Разведчик в пути: {scout.TicksLeft} с</color>", smallLabel);
+                    }
+                    else
+                    {
+                        var canScout = world.CanScout(def.Id, out var reason);
+                        GUI.enabled = canScout;
+                        if (GUILayout.Button("Разведать (1 герой)")) world.Enqueue(new ScoutCommand(def.Id));
+                        GUI.enabled = true;
+                        if (!canScout) GUILayout.Label($"<color=#AAAAAA>{reason}</color>", smallLabel);
+                    }
+                }
+                else if (def.Kind == SiteKind.Dungeon)
+                {
+                    var dungeon = Dungeons.Get(def.DungeonId);
+                    GUILayout.Label($"<b>{def.Name}</b>", richLabel);
+                    GUILayout.Label($"Добыча: {ResourceInfo.Name(dungeon.LootType).ToLower()} · {def.Distance} дн. пути · зачищен {site.TimesCleared} раз", smallLabel);
+                    var tensionRect = GUILayoutUtility.GetRect(170f, 10f);
+                    DrawBar(new Rect(tensionRect.x, tensionRect.y + 2f, tensionRect.width, 8f), site.Tension / Region.TensionMax, new Color(0.9f, 0.45f, 0.2f));
+                    GUILayout.Label($"<color=#BBBBBB>Напряжение {site.Tension:0}%{(world.IsHeroicUnlocked(def.DungeonId) ? " · есть героич." : "")}</color>", smallLabel);
+                }
+                else
+                {
+                    GUILayout.Label($"<b>{def.Name}</b>", richLabel);
+                    GUILayout.Label("<color=#BBBBBB>Логово. Набеги на город появятся позже.</color>", smallLabel);
+                }
+                GUILayout.EndArea();
+            }
         }
 
         static string GearShort(int tier) => tier == 0 ? "—" : tier == 1 ? "Ж" : "С";
@@ -530,7 +609,7 @@ namespace AdventurerCity.View
             var rect = Panel(new Rect(10f, Screen.height - ToolbarHeight - 30f - height, width, height));
             GUILayout.BeginArea(new Rect(rect.x + 10f, rect.y + 6f, rect.width - 20f, rect.height - 10f));
             GUILayout.BeginHorizontal();
-            GUILayout.Label($"<b>Отрядов в шахте: {expeditions.Count}</b>", richLabel);
+            GUILayout.Label($"<b>Отрядов в походе: {expeditions.Count}</b>", richLabel);
             GUILayout.FlexibleSpace();
             var guild = world.FindGuild();
             if (guild != null && GUILayout.Button("Гильдия", GUILayout.Width(80f))) tool.SelectedId = guild.Id;
@@ -557,7 +636,7 @@ namespace AdventurerCity.View
         void DrawExpeditionDetails(ActiveExpedition active, bool compact)
         {
             var run = active.Run;
-            GUILayout.Label($"{PhaseText(run)} · добыча: {run.Ore} руды, {run.Gold} зол.", richLabel);
+            GUILayout.Label($"{PhaseText(run)} · {run.Loot} {ResourceInfo.Name(run.LootType).ToLower()}, {run.Gold} зол.", richLabel);
 
             foreach (var hero in run.Party)
                 DrawUnit(hero, hero.Dead ? "погиб(ла)" : hero.Downed ? "при смерти" : null);
@@ -599,9 +678,9 @@ namespace AdventurerCity.View
         {
             switch (run.Phase)
             {
-                case ExpeditionPhase.TravelOut: return "Идёт к шахте";
+                case ExpeditionPhase.TravelOut: return "В пути к данжу";
                 case ExpeditionPhase.Room:
-                    var room = $"Комната {run.RoomIndex + 1}/{run.Rooms.Count}: {Expedition.RoomName(run.Rooms[run.RoomIndex])}";
+                    var room = $"Комната {run.RoomIndex + 1}/{run.Rooms.Count}: {run.Rooms[run.RoomIndex].Name}";
                     return run.Battle != null ? room + " — <color=#FF8A80>бой</color>" : room;
                 case ExpeditionPhase.Rest: return "Привал между комнатами";
                 case ExpeditionPhase.TravelBack: return run.Cleared ? "Возвращается с победой" : "Возвращается в город";

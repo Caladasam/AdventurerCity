@@ -11,7 +11,8 @@ namespace AdventurerCity.Simulation
         Planks,
         Grain,
         Bread,
-        Ore
+        Ore,
+        Gems
     }
 
     [Serializable]
@@ -29,9 +30,9 @@ namespace AdventurerCity.Simulation
 
     public static class ResourceInfo
     {
-        public const int Count = 6;
+        public const int Count = 7;
 
-        static readonly string[] names = { "Золото", "Брёвна", "Доски", "Зерно", "Хлеб", "Руда" };
+        static readonly string[] names = { "Золото", "Брёвна", "Доски", "Зерно", "Хлеб", "Руда", "Самоцветы" };
 
         public static string Name(ResourceType type) => names[(int)type];
 

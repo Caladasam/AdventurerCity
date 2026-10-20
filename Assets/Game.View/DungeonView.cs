@@ -49,6 +49,8 @@ namespace AdventurerCity.View
         CameraRig cityRig;
         Camera arenaCamera;
         Transform arenaRoot;
+        MeshRenderer floorRenderer;
+        int floorDungeonId;
         Battle shownBattle;
         int eventCursor;
         float shakeTime;
@@ -70,7 +72,8 @@ namespace AdventurerCity.View
             var floor = Materials.CreateCube("Floor", arenaRoot);
             floor.transform.localScale = new Vector3(26f, 0.2f, 16f);
             floor.transform.localPosition = new Vector3(0f, -0.1f, 0f);
-            floor.GetComponent<MeshRenderer>().sharedMaterial = Materials.Get(new Color(0.22f, 0.2f, 0.19f));
+            floorRenderer = floor.GetComponent<MeshRenderer>();
+            floorRenderer.sharedMaterial = Materials.Get(new Color(0.22f, 0.2f, 0.19f));
             for (var i = 0; i < 6; i++)
             {
                 var pillar = Materials.CreateCube("Pillar", arenaRoot);
@@ -132,12 +135,19 @@ namespace AdventurerCity.View
             var active = Watched();
             if (active == null)
             {
-                runner.Log.Add(new SimEvent(runner.Sim.State.Tick, "Отряд вернулся из шахты"));
+                runner.Log.Add(new SimEvent(runner.Sim.State.Tick, "Отряд вернулся из похода"));
                 StopWatching();
                 return;
             }
 
             var run = active.Run;
+            if (floorDungeonId != run.Dungeon.Id)
+            {
+                floorDungeonId = run.Dungeon.Id;
+                floorRenderer.sharedMaterial = Materials.Get(run.Dungeon.Id == Dungeons.CatacombsId
+                    ? new Color(0.16f, 0.19f, 0.23f)
+                    : new Color(0.22f, 0.2f, 0.19f));
+            }
             if (run.Battle != shownBattle)
             {
                 foreach (var actor in actors.Values)
@@ -175,12 +185,12 @@ namespace AdventurerCity.View
 
             if (shownBattle == null) return;
             var enemies = shownBattle.Enemies;
+            var bossRoom = run.RoomIndex < run.Rooms.Count && run.Rooms[run.RoomIndex].Kind == RoomKind.Boss;
             for (var i = 0; i < enemies.Count; i++)
             {
                 if (actors.ContainsKey(enemies[i])) continue;
-                var boss = enemies[i].Enemy == EnemyKind.Grok;
-                var home = boss ? new Vector3(4.2f, 0f, 0f) : new Vector3(2.4f + i % 2 * 1.6f, 0f, (i - (enemies.Count - 1) * 0.5f) * 2.3f);
-                if (i >= 1 && enemies[0].Enemy == EnemyKind.Grok) home = new Vector3(2.2f, 0f, i % 2 == 0 ? 3f : -3f);
+                var home = bossRoom && i == 0 ? new Vector3(4.2f, 0f, 0f) : new Vector3(2.4f + i % 2 * 1.6f, 0f, (i - (enemies.Count - 1) * 0.5f) * 2.3f);
+                if (bossRoom && i >= 1) home = new Vector3(2.2f, 0f, i % 2 == 0 ? 3f : -3f);
                 Spawn(enemies[i], home);
             }
         }
@@ -251,9 +261,9 @@ namespace AdventurerCity.View
                     case BattleEventKind.Summon:
                         AddText(source, "Подмога!", new Color(1f, 0.7f, 0.3f), 18);
                         break;
-                    case BattleEventKind.Collapse:
+                    case BattleEventKind.EnemyAoe:
                         shakeTime = 0.45f;
-                        AddText(source, "ОБВАЛ!", new Color(1f, 0.6f, 0.2f), 24);
+                        AddText(source, CombatData.Get(e.Source.Enemy).AoeName.ToUpper() + "!", new Color(1f, 0.6f, 0.2f), 24);
                         foreach (var actor in actors.Values)
                             if (actor.Unit.IsHero)
                                 Flash(actor, new Color(1f, 0.6f, 0.3f));
@@ -387,7 +397,7 @@ namespace AdventurerCity.View
                 if (unit.IsCasting)
                 {
                     var progress = 1f - unit.CastTimer / actor.CastTotal;
-                    GUI.Label(new Rect(x - 90f, y + 4f, 180f, 18f), $"<color=#FFD180>{CastName(unit.Cast)}</color>", label);
+                    GUI.Label(new Rect(x - 90f, y + 4f, 180f, 18f), $"<color=#FFD180>{CastName(unit)}</color>", label);
                     DrawBar(new Rect(x - 32f, y + 22f, 64f, 5f), progress, new Color(1f, 0.8f, 0.4f));
                 }
             }
@@ -407,9 +417,9 @@ namespace AdventurerCity.View
             var run = active.Run;
             var header = new Rect(Screen.width * 0.5f - 260f, 40f, 520f, 64f);
             GUI.Box(header, GUIContent.none, panelStyle);
-            GUI.Label(new Rect(header.x, header.y + 6f, header.width, 22f), $"<b>Заброшенная шахта</b> · {Hud.PhaseText(run)}", label);
+            GUI.Label(new Rect(header.x, header.y + 6f, header.width, 22f), $"<b>{run.Dungeon.Name}{(run.Heroic ? " (героич.)" : "")}</b> · {Hud.PhaseText(run)}", label);
             GUI.Label(new Rect(header.x, header.y + 26f, header.width, 18f),
-                $"<color=#BBBBBB>{run.Elapsed:0} с в походе · добыча: {run.Ore} руды, {run.Gold} зол.</color>", label);
+                $"<color=#BBBBBB>{run.Elapsed:0} с в походе · добыча: {run.Loot} {ResourceInfo.Name(run.LootType).ToLower()}, {run.Gold} зол.</color>", label);
             if (GUI.Button(new Rect(header.x + header.width * 0.5f - 90f, header.y + 44f, 180f, 18f), "Вернуться в город (Esc)"))
                 StopWatching();
 
@@ -429,14 +439,14 @@ namespace AdventurerCity.View
             GUI.color = previous;
         }
 
-        static string CastName(CastKind cast)
+        static string CastName(Combatant unit)
         {
-            switch (cast)
+            switch (unit.Cast)
             {
                 case CastKind.Heal: return "Лечение";
                 case CastKind.Revive: return "Поднять";
-                case CastKind.ShamanHeal: return "Лечение шамана";
-                case CastKind.Collapse: return "Обвал";
+                case CastKind.EnemyHeal: return "Лечение";
+                case CastKind.EnemyAoe: return CombatData.Get(unit.Enemy).AoeName;
                 default: return "";
             }
         }
@@ -448,6 +458,10 @@ namespace AdventurerCity.View
                 case EnemyKind.Ratman: return new Vector3(0.75f, 1.0f, 0.75f);
                 case EnemyKind.Digger: return new Vector3(1.0f, 1.3f, 1.0f);
                 case EnemyKind.Shaman: return new Vector3(0.8f, 1.5f, 0.8f);
+                case EnemyKind.Skeleton: return new Vector3(0.7f, 1.6f, 0.7f);
+                case EnemyKind.Ghoul: return new Vector3(1.1f, 1.4f, 1.1f);
+                case EnemyKind.BoneMage: return new Vector3(0.75f, 1.8f, 0.75f);
+                case EnemyKind.CryptKeeper: return new Vector3(2.2f, 3.6f, 2.2f);
                 default: return new Vector3(2.4f, 3.2f, 2.4f);
             }
         }
@@ -469,6 +483,10 @@ namespace AdventurerCity.View
                 case EnemyKind.Ratman: return new Color(0.52f, 0.4f, 0.3f);
                 case EnemyKind.Digger: return new Color(0.36f, 0.58f, 0.26f);
                 case EnemyKind.Shaman: return new Color(0.55f, 0.32f, 0.75f);
+                case EnemyKind.Skeleton: return new Color(0.85f, 0.83f, 0.76f);
+                case EnemyKind.Ghoul: return new Color(0.45f, 0.55f, 0.48f);
+                case EnemyKind.BoneMage: return new Color(0.35f, 0.75f, 0.7f);
+                case EnemyKind.CryptKeeper: return new Color(0.25f, 0.3f, 0.42f);
                 default: return new Color(0.3f, 0.24f, 0.2f);
             }
         }

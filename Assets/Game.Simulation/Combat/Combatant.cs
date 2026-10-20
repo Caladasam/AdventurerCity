@@ -7,8 +7,8 @@ namespace AdventurerCity.Simulation.Combat
         None,
         Heal,
         Revive,
-        ShamanHeal,
-        Collapse
+        EnemyHeal,
+        EnemyAoe
     }
 
     public sealed class Combatant
@@ -53,6 +53,7 @@ namespace AdventurerCity.Simulation.Combat
         public bool Injured;
         public int XpGained;
         public float DamageTaken;
+        public float Scale = 1f;
 
         public readonly Dictionary<Combatant, float> Threat = new Dictionary<Combatant, float>();
 
@@ -92,7 +93,7 @@ namespace AdventurerCity.Simulation.Combat
             };
         }
 
-        public static Combatant FromEnemy(EnemyKind kind)
+        public static Combatant FromEnemy(EnemyKind kind, float scale = 1f)
         {
             var def = CombatData.Get(kind);
             return new Combatant
@@ -100,10 +101,11 @@ namespace AdventurerCity.Simulation.Combat
                 Name = def.Name,
                 Enemy = kind,
                 Level = def.Level,
-                MaxHp = def.Hp,
-                Hp = def.Hp,
+                Scale = scale,
+                MaxHp = def.Hp * scale,
+                Hp = def.Hp * scale,
                 Armor = def.Armor,
-                Weapon = def.Damage,
+                Weapon = def.Damage * scale,
                 CritChance = CombatData.EnemyCritChance,
                 AttackInterval = def.AttackInterval,
                 MagicAttack = def.MagicAttack
