@@ -103,7 +103,8 @@ namespace AdventurerCity.View
             topBar.Root.style.marginLeft = 0f;
             topBar.Root.style.marginRight = 0f;
 
-            hint = new Label("ЛКМ — строить/выбрать · ПКМ/Esc — отмена · R — поворот · WASD, колесо, СКМ — камера · Tab — экономика · M — карта");
+            BuildMenus();
+            hint = new Label();
             hint.AddToClassList("hint");
             hint.pickingMode = PickingMode.Ignore;
             root.Add(hint);
@@ -142,14 +143,14 @@ namespace AdventurerCity.View
 
         void Update()
         {
-            if (Input.GetKeyDown(KeyCode.Tab)) economyOpen = !economyOpen;
-            if (Input.GetKeyDown(KeyCode.M)) mapOpen = !mapOpen;
             if (root == null) return;
+            HandleKeys();
+            UpdateMenus();
 
             var world = runner.Sim;
-            var watching = runner.IsWatchingDungeon;
+            var watching = runner.IsWatchingDungeon || mainMenuOpen;
             var building = world.GetBuilding(tool.SelectedId);
-            topBar.Visible = true;
+            topBar.Visible = !mainMenuOpen;
             log.Visible = world != null && runner.Log.Count > 0;
             toolbar.Visible = !watching;
             categoryBar.Visible = !watching && category >= 0;
@@ -162,6 +163,8 @@ namespace AdventurerCity.View
             stage.Visible = !watching && stageOpen;
             victory.Visible = !watching && world.Victory && !victoryClosed;
             hint.style.display = watching || category >= 0 ? DisplayStyle.None : DisplayStyle.Flex;
+            hint.text = $"ЛКМ — строить/выбрать · ПКМ/Esc — отмена · {Key(GameKey.Rotate)} — поворот · {Key(GameKey.CameraUp)}{Key(GameKey.CameraLeft)}{Key(GameKey.CameraDown)}{Key(GameKey.CameraRight)}, колесо, СКМ — камера · " +
+                        $"{Key(GameKey.Pause)} — пауза · {Key(GameKey.Economy)} — экономика · {Key(GameKey.Map)} — карта · Esc — меню";
 
             var force = refreshAll;
             refreshAll = false;
@@ -173,6 +176,8 @@ namespace AdventurerCity.View
             }
             UpdateTooltip();
         }
+
+        static string Key(GameKey key) => GameSettings.CodeName(GameSettings.Get(key));
 
         public bool IsPointerOverUi(Vector3 mousePosition)
         {
@@ -234,15 +239,16 @@ namespace AdventurerCity.View
                 ui.Button($"{world.CurrentStage.Name} · слава {world.Fame}", () => stageOpen = !stageOpen, true,
                     "Этап поселения, следующий этап и цель игры", 0f, 0f, stageOpen, world.CanAdvanceStage(out _) && !stageOpen ? "ready" : null);
                 ui.Flex();
+                if (runner.Paused) ui.Text("<color=#FFD54F><b>ПАУЗА</b></color>").style.marginRight = 6f;
+                ui.Button(runner.Paused ? "▶" : "||", () => runner.Paused = !runner.Paused, true, $"Пауза ({Key(GameKey.Pause)})", 34f, 0f, runner.Paused);
                 for (var i = 0; i < runner.Speeds.Count; i++)
                 {
                     var index = i;
-                    ui.Button($"x{runner.Speeds[i]}", () => runner.SetSpeed(index), true, null, 34f, 0f, i == runner.SpeedIndex);
+                    ui.Button($"x{runner.Speeds[i]}", () => runner.SetSpeed(index), true, $"Скорость x{runner.Speeds[i]} ({Key((GameKey)((int)GameKey.Speed1 + i))})", 34f, 0f,
+                        !runner.Paused && i == runner.SpeedIndex);
                 }
-                ui.Button(GameAudio.Muted ? "Тихо" : "Звук", () => GameAudio.Muted = !GameAudio.Muted, true, null, 52f);
-                ui.Button("Сохр.", runner.Save, true, "F5", 56f);
-                ui.Button("Загр.", runner.Load, true, "F9", 56f);
-                ui.Button("Новая", runner.NewGame, true, "Начать заново (сохранение перезапишется при следующем автосейве)", 60f);
+                ui.Button(GameAudio.Muted ? "Тихо" : "Звук", () => GameAudio.Muted = !GameAudio.Muted, true, "Громкость — в настройках", 52f);
+                ui.Button("Меню", () => pauseOpen = true, true, "Сохранение, загрузка, настройки (Esc)", 64f);
             });
         }
 

@@ -51,6 +51,18 @@ namespace AdventurerCity.View
 
         public void Cancel() => SetMode(ToolMode.None);
 
+        public bool Back()
+        {
+            if (Mode != ToolMode.None)
+            {
+                Cancel();
+                return true;
+            }
+            if (SelectedId == 0) return false;
+            SelectedId = 0;
+            return true;
+        }
+
         void SetMode(ToolMode mode)
         {
             Mode = mode;
@@ -67,12 +79,9 @@ namespace AdventurerCity.View
                 return;
             }
 
-            if (Input.GetKeyDown(KeyCode.Escape) || Input.GetMouseButtonDown(1))
-            {
-                if (Mode == ToolMode.None) SelectedId = 0;
-                Cancel();
-            }
-            if (Input.GetKeyDown(KeyCode.R)) Rotated = !Rotated;
+            if (runner.Menu) return;
+            if (Input.GetMouseButtonDown(1)) Back();
+            if (GameSettings.Down(GameKey.Rotate)) Rotated = !Rotated;
 
             var overUi = hud.IsPointerOverUi(Input.mousePosition);
             if ((!overUi || dragging) && rig.TryGetGroundCell(out var cell))

@@ -27,6 +27,10 @@ namespace AdventurerCity.View
         public CameraRig Rig { get; private set; }
         public BuildTool Tool => tool;
         public int SpeedIndex { get; private set; }
+        public bool Paused { get; set; }
+        public bool Menu { get; set; } = true;
+        public bool Running => !Paused && !Menu;
+        public string LastSlot { get; private set; } = SaveSystem.AutoSlot;
         public IReadOnlyList<int> Speeds => speeds;
         public List<SimEvent> Log { get; } = new List<SimEvent>();
         public bool IsWatchingDungeon => dungeonView != null && dungeonView.IsWatching;
@@ -41,8 +45,11 @@ namespace AdventurerCity.View
 
         void Awake()
         {
+            GameSettings.Load();
             content = ContentLibrary.CreateDefault();
-            Sim = SaveSystem.TryLoad(content) ?? World.CreateNew(content);
+            var latest = SaveSystem.Latest();
+            Sim = (latest != null ? SaveSystem.TryLoad(content, latest) : null) ?? World.CreateNew(content);
+            if (latest != null) LastSlot = latest;
             Sim.RealtimeCombat = true;
             lastAutosaveDay = Sim.Day;
 
@@ -68,6 +75,13 @@ namespace AdventurerCity.View
         void Update()
         {
             Sim.FlushCommands();
+            if (!Running)
+            {
+                accumulator = 0f;
+                combatAccumulator = 0f;
+                DrainLog();
+                return;
+            }
             accumulator += Time.deltaTime * speeds[SpeedIndex];
             var steps = 0;
             while (accumulator >= SecondsPerTick && steps < MaxStepsPerFrame)
@@ -82,20 +96,22 @@ namespace AdventurerCity.View
             combatAccumulator -= combatSteps * CombatData.Tick;
             Sim.AdvanceCombat(combatSteps);
 
-            var before = Log.Count;
-            Sim.DrainEvents(Log);
-            for (var i = before; i < Log.Count; i++) PlayEventSound(Log[i].Text);
-            if (Log.Count > MaxLogEntries) Log.RemoveRange(0, Log.Count - MaxLogEntries);
+            DrainLog();
             GameAudio.Battle = IsWatchingDungeon || Sim.ActiveRaids.Count > 0;
 
             if (Sim.Day != lastAutosaveDay)
             {
                 lastAutosaveDay = Sim.Day;
-                SaveSystem.Save(Sim);
+                SaveSystem.Save(Sim, SaveSystem.AutoSlot);
             }
+        }
 
-            if (Input.GetKeyDown(KeyCode.F5)) Save();
-            if (Input.GetKeyDown(KeyCode.F9)) Load();
+        void DrainLog()
+        {
+            var before = Log.Count;
+            Sim.DrainEvents(Log);
+            for (var i = before; i < Log.Count; i++) PlayEventSound(Log[i].Text);
+            if (Log.Count > MaxLogEntries) Log.RemoveRange(0, Log.Count - MaxLogEntries);
         }
 
         void LateUpdate() => Sim.FlushCommands();
@@ -109,7 +125,7 @@ namespace AdventurerCity.View
             else if (text.StartsWith("Построено")) GameAudio.Play(Sfx.Built, 0.7f);
         }
 
-        void OnApplicationQuit() => SaveSystem.Save(Sim);
+        void OnApplicationQuit() => SaveSystem.Save(Sim, SaveSystem.AutoSlot);
 
         public void WatchRaid(int siteId)
         {
@@ -123,27 +139,55 @@ namespace AdventurerCity.View
             dungeonView.Watch(expeditionId);
         }
 
-        public void SetSpeed(int index) => SpeedIndex = Mathf.Clamp(index, 0, speeds.Length - 1);
-
-        public void Save()
+        public void SetSpeed(int index)
         {
-            SaveSystem.Save(Sim);
-            Log.Add(new SimEvent(Sim.State.Tick, "Игра сохранена"));
+            SpeedIndex = Mathf.Clamp(index, 0, speeds.Length - 1);
+            Paused = false;
         }
 
-        public void Load()
+        public void StopWatching()
         {
-            var loaded = SaveSystem.TryLoad(content);
+            if (dungeonView.IsWatching) dungeonView.StopWatching();
+        }
+
+        public bool Save(string slot)
+        {
+            var ok = SaveSystem.Save(Sim, slot);
+            if (ok) LastSlot = slot;
+            Log.Add(new SimEvent(Sim.State.Tick, ok ? $"Игра сохранена: {SaveSystem.TitleOf(slot)}" : "Не удалось сохранить игру"));
+            return ok;
+        }
+
+        public bool Load(string slot)
+        {
+            var loaded = SaveSystem.TryLoad(content, slot);
             if (loaded == null)
             {
-                Log.Add(new SimEvent(Sim.State.Tick, "Сохранение не найдено"));
-                return;
+                Log.Add(new SimEvent(Sim.State.Tick, $"Сохранение «{SaveSystem.TitleOf(slot)}» не найдено или повреждено"));
+                return false;
             }
             Replace(loaded);
-            Log.Add(new SimEvent(Sim.State.Tick, "Игра загружена"));
+            LastSlot = slot;
+            Log.Add(new SimEvent(Sim.State.Tick, $"Игра загружена: {SaveSystem.TitleOf(slot)}"));
+            return true;
         }
 
-        public void NewGame() => Replace(World.CreateNew(content));
+        public void NewGame()
+        {
+            Replace(World.CreateNew(content));
+            Log.Clear();
+            Log.Add(new SimEvent(Sim.State.Tick, "Новая игра: поставьте дома у дороги, ферму и лесоруба"));
+        }
+
+        public void Quit()
+        {
+            SaveSystem.Save(Sim, SaveSystem.AutoSlot);
+#if UNITY_EDITOR
+            UnityEditor.EditorApplication.isPlaying = false;
+#else
+            Application.Quit();
+#endif
+        }
 
         void Replace(World world)
         {

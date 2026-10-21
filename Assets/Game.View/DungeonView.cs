@@ -174,11 +174,6 @@ namespace AdventurerCity.View
         void Update()
         {
             if (!IsWatching) return;
-            if (Input.GetKeyDown(KeyCode.Escape))
-            {
-                StopWatching();
-                return;
-            }
 
             var active = Watched();
             var raid = WatchedRaid();

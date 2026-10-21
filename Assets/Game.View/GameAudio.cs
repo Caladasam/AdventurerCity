@@ -35,15 +35,12 @@ namespace AdventurerCity.View
         AudioSource battleMusic;
         System.Random random = new System.Random(11);
         int nextVoice;
+        float blend;
 
         public static bool Muted
         {
-            get => AudioListener.volume < 0.01f;
-            set
-            {
-                AudioListener.volume = value ? 0f : 1f;
-                PlayerPrefs.SetInt("muted", value ? 1 : 0);
-            }
+            get => GameSettings.Muted;
+            set => GameSettings.SetMuted(value);
         }
 
         public static bool Battle { get; set; }
@@ -57,7 +54,7 @@ namespace AdventurerCity.View
         {
             instance = this;
             if (FindAnyObjectByType<AudioListener>() == null) gameObject.AddComponent<AudioListener>();
-            AudioListener.volume = PlayerPrefs.GetInt("muted", 0) == 1 ? 0f : 1f;
+            GameSettings.Load();
             for (var i = 0; i < 12; i++)
             {
                 var source = gameObject.AddComponent<AudioSource>();
@@ -102,9 +99,10 @@ namespace AdventurerCity.View
         {
             if (cityMusic == null) return;
             var target = Battle ? 1f : 0f;
-            var blend = Mathf.MoveTowards(battleMusic.volume / MusicVolume, target, Time.unscaledDeltaTime * 0.6f);
-            battleMusic.volume = blend * MusicVolume;
-            cityMusic.volume = (1f - blend) * MusicVolume;
+            blend = Mathf.MoveTowards(blend, target, Time.unscaledDeltaTime * 0.6f);
+            var volume = MusicVolume * GameSettings.MusicVolume;
+            battleMusic.volume = blend * volume;
+            cityMusic.volume = (1f - blend) * volume;
         }
 
         void PlayInternal(Sfx sfx, float volume)
@@ -115,7 +113,7 @@ namespace AdventurerCity.View
             var source = voices[nextVoice];
             nextVoice = (nextVoice + 1) % voices.Count;
             source.pitch = 0.92f + (float)random.NextDouble() * 0.16f;
-            source.PlayOneShot(clip, volume);
+            source.PlayOneShot(clip, volume * GameSettings.SfxVolume);
         }
 
         AudioSource MusicSource(AudioClip clip)

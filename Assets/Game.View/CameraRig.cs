@@ -51,10 +51,10 @@ namespace AdventurerCity.View
             if (!cam.enabled) return;
             var dt = Time.unscaledDeltaTime;
             var input = Vector3.zero;
-            if (Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.UpArrow)) input.y += 1f;
-            if (Input.GetKey(KeyCode.S) || Input.GetKey(KeyCode.DownArrow)) input.y -= 1f;
-            if (Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.RightArrow)) input.x += 1f;
-            if (Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.LeftArrow)) input.x -= 1f;
+            if (GameSettings.Held(GameKey.CameraUp) || Input.GetKey(KeyCode.UpArrow)) input.y += 1f;
+            if (GameSettings.Held(GameKey.CameraDown) || Input.GetKey(KeyCode.DownArrow)) input.y -= 1f;
+            if (GameSettings.Held(GameKey.CameraRight) || Input.GetKey(KeyCode.RightArrow)) input.x += 1f;
+            if (GameSettings.Held(GameKey.CameraLeft) || Input.GetKey(KeyCode.LeftArrow)) input.x -= 1f;
             pivot += input.normalized * (size * 1.2f * dt);
 
             if (Input.GetMouseButtonDown(2)) lastMouse = Input.mousePosition;

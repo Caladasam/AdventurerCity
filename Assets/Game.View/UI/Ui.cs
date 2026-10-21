@@ -129,6 +129,16 @@ namespace AdventurerCity.View
             Signature.Append('b').Append(Mathf.RoundToInt(ratio * 100f)).Append(ColorUtility.ToHtmlStringRGB(color));
         }
 
+        public void Slider(float value, float min, float max, Action<float> onChange, float width)
+        {
+            var slider = new Slider(min, max) { value = value };
+            slider.style.width = width;
+            slider.style.flexShrink = 0;
+            slider.RegisterValueChangedCallback(e => onChange(e.newValue));
+            Current.Add(slider);
+            Signature.Append('s').Append(Mathf.RoundToInt(value * 100f));
+        }
+
         public void Swatch(Color color)
         {
             var swatch = new VisualElement { pickingMode = PickingMode.Ignore };
